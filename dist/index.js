@@ -823,7 +823,7 @@ async function run() {
         const defaultBranch = await (0, retrieveDefaultBranch_1.retrieveDefaultBranch)(octokit, repo);
         const commitComparison = await (0, retrieveCommitComparison_1.retrieveCommitComparison)(octokit, defaultBranch, lastVersionTag.tag);
         if (!((_a = commitComparison.commits) === null || _a === void 0 ? void 0 : _a.length)) {
-            core.warning(`No commits found after last version tag: ${commitComparison.html_url}`);
+            core.warning(`No commits found after last version tag`);
             return;
         }
         const commitComparisonFiles = commitComparison.files;
