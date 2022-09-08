@@ -46,7 +46,7 @@ async function run(): Promise<void> {
             core.warning(`Skipping release creation, as no version tags found for repository ${repo.html_url}`)
             return
         } else {
-            core.info(`Last version: ${lastVersionTag.version}, tag: ${repo.html_url}/releases/tag/${lastVersionTag.tag.name}`)
+            core.info(`Last version: '${lastVersionTag.version}', tag: ${repo.html_url}/releases/tag/${lastVersionTag.tag.name}`)
         }
 
         if (lastVersionTag.version.hasSuffix) {
