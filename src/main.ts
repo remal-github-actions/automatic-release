@@ -45,9 +45,9 @@ async function run(): Promise<void> {
         if (lastVersionTag == null) {
             core.info(`Skipping release creation, as no version tags found for repository ${repo.html_url}`)
             return
-        } else {
-            core.info(`Last version: '${lastVersionTag.version}', tag: ${repo.html_url}/releases/tag/${lastVersionTag.tag.name}`)
         }
+        const tagHtmlUrl = `${repo.html_url}/releases/tag/${lastVersionTag.tag.name}`
+        core.info(`Last version: '${lastVersionTag.version}', tag: ${tagHtmlUrl}`)
 
         if (lastVersionTag.version.hasSuffix) {
             core.warning(`Skipping release creation, as last version has suffix: '${lastVersionTag.version}'`)
@@ -57,7 +57,7 @@ async function run(): Promise<void> {
         const defaultBranch = await retrieveDefaultBranch(octokit, repo)
         const commitComparison = await retrieveCommitComparison(octokit, defaultBranch, lastVersionTag.tag)
         if (!commitComparison.commits?.length) {
-            core.info(`No commits found after last version tag`)
+            core.info(`No commits found after last version tag: ${commitComparison.html_url || tagHtmlUrl}`)
             return
         }
 
