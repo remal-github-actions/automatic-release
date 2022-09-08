@@ -125,7 +125,7 @@ async function run(): Promise<void> {
         if (commitPullRequests.length) {
             releaseDescription = '# What\'s Changed\n'
             for (const commitPullRequest of commitPullRequests) {
-                releaseDescription += `\n* ${commitPullRequest.commit.commit.message} (#${commitPullRequest.pullRequest.number})`
+                releaseDescription += `\n* ${commitPullRequest.pullRequest.title} (#${commitPullRequest.pullRequest.number})`
                 const login = commitPullRequest.pullRequest.user?.login
                 if (login != null) {
                     releaseDescription += ` @${login}`
