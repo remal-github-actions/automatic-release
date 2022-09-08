@@ -492,10 +492,12 @@ exports.retrieveCommitComparison = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const github_1 = __nccwpck_require__(5438);
 async function retrieveCommitComparison(octokit, branch, tag) {
+    const perPage = 100;
     core.debug(`Retrieving commit comparison.`
         + ` Branch: '${branch.name}'.`
-        + ` Tag: '${tag.name}'.`);
-    const perPage = 100;
+        + ` Tag: '${tag.name}'.`
+        + ` Commits per page: '${perPage}'.`
+        + ` Page: '1'.`);
     const commitComparison = await octokit.repos.compareCommitsWithBasehead({
         owner: github_1.context.repo.owner,
         repo: github_1.context.repo.repo,
@@ -505,17 +507,24 @@ async function retrieveCommitComparison(octokit, branch, tag) {
     }).then(it => it.data);
     commitComparison.commits = commitComparison.commits || [];
     let lastLoadedCommitsCount = commitComparison.commits.length;
+    core.debug(`  lastLoadedCommitsCount = ${lastLoadedCommitsCount}`);
     for (let page = 2; lastLoadedCommitsCount >= perPage; ++page) {
+        core.debug(`Retrieving commit comparison.`
+            + ` Branch: '${branch.name}'.`
+            + ` Tag: '${tag.name}'.`
+            + ` Commits per page: '${perPage}'.`
+            + ` Page: '${page}'.`);
         const pageCommitComparison = await octokit.repos.compareCommitsWithBasehead({
             owner: github_1.context.repo.owner,
             repo: github_1.context.repo.repo,
             basehead: `${tag.commit.sha}...${branch.commit.sha}`,
-            page: 1,
+            page,
             per_page: perPage,
         }).then(it => it.data);
         pageCommitComparison.commits = pageCommitComparison.commits || [];
         pageCommitComparison.commits.forEach(commit => commitComparison.commits.push(commit));
         lastLoadedCommitsCount = pageCommitComparison.commits.length;
+        core.debug(`  lastLoadedCommitsCount = ${lastLoadedCommitsCount}`);
     }
     return commitComparison;
 }
@@ -839,7 +848,6 @@ async function run() {
         const defaultBranch = await (0, retrieveDefaultBranch_1.retrieveDefaultBranch)(octokit, repo);
         const commitComparison = await (0, retrieveCommitComparison_1.retrieveCommitComparison)(octokit, defaultBranch, lastVersionTag.tag);
         const commitComparisonCommits = commitComparison.commits || [];
-        core.warning(JSON.stringify(commitComparison, null, 2));
         if (!commitComparisonCommits.length) {
             core.info(`No commits found after last version tag: ${commitComparison.html_url}`);
             return;
@@ -855,7 +863,7 @@ async function run() {
                 }
             }
             if (!areExpectedFilesChanged) {
-                core.warning(`No expected files were changed`);
+                core.warning(`No expected files were changed:\n  ${expectedFilesToChange.join('\n  ')}`);
                 return;
             }
         }
