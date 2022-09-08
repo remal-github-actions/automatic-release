@@ -56,7 +56,6 @@ async function run(): Promise<void> {
         const defaultBranch = await retrieveDefaultBranch(octokit, repo)
         const commitComparison = await retrieveCommitComparison(octokit, defaultBranch, lastVersionTag.tag)
         const commitComparisonCommits = commitComparison.commits || []
-        core.warning(JSON.stringify(commitComparison, null, 2))
         if (!commitComparisonCommits.length) {
             core.info(`No commits found after last version tag: ${commitComparison.html_url}`)
             return
@@ -74,7 +73,7 @@ async function run(): Promise<void> {
                 }
             }
             if (!areExpectedFilesChanged) {
-                core.warning(`No expected files were changed`)
+                core.warning(`No expected files were changed:\n  ${expectedFilesToChange.join('\n  ')}`)
                 return
             }
         }
