@@ -495,11 +495,29 @@ async function retrieveCommitComparison(octokit, branch, tag) {
     core.debug(`Retrieving commit comparison.`
         + ` Branch: '${branch.name}'.`
         + ` Tag: '${tag.name}'.`);
-    return octokit.paginate(octokit.repos.compareCommitsWithBasehead, {
+    const perPage = 100;
+    const commitComparison = await octokit.repos.compareCommitsWithBasehead({
         owner: github_1.context.repo.owner,
         repo: github_1.context.repo.repo,
         basehead: `${tag.commit.sha}...${branch.commit.sha}`,
-    });
+        page: 1,
+        per_page: perPage,
+    }).then(it => it.data);
+    commitComparison.commits = commitComparison.commits || [];
+    let lastLoadedCommitsCount = commitComparison.commits.length;
+    for (let page = 2; lastLoadedCommitsCount >= perPage; ++page) {
+        const pageCommitComparison = await octokit.repos.compareCommitsWithBasehead({
+            owner: github_1.context.repo.owner,
+            repo: github_1.context.repo.repo,
+            basehead: `${tag.commit.sha}...${branch.commit.sha}`,
+            page: 1,
+            per_page: perPage,
+        }).then(it => it.data);
+        pageCommitComparison.commits = pageCommitComparison.commits || [];
+        pageCommitComparison.commits.forEach(commit => commitComparison.commits.push(commit));
+        lastLoadedCommitsCount = pageCommitComparison.commits.length;
+    }
+    return commitComparison;
 }
 exports.retrieveCommitComparison = retrieveCommitComparison;
 
@@ -805,7 +823,7 @@ const versionIncrementMode = core.getInput('versionIncrementMode', { required: t
 const dryRun = core.getInput('dryRun', { required: true }).toLowerCase() === 'true';
 const octokit = (0, octokit_1.newOctokitInstance)(githubToken);
 async function run() {
-    var _a, _b;
+    var _a;
     try {
         const repo = await (0, retrieveRepo_1.retrieveRepo)(octokit);
         const lastVersionTag = await (0, retrieveVersionTags_1.retrieveLastVersionTag)(octokit, allowedVersionTagPrefixes);
@@ -820,11 +838,10 @@ async function run() {
         }
         const defaultBranch = await (0, retrieveDefaultBranch_1.retrieveDefaultBranch)(octokit, repo);
         const commitComparison = await (0, retrieveCommitComparison_1.retrieveCommitComparison)(octokit, defaultBranch, lastVersionTag.tag);
+        const commitComparisonCommits = commitComparison.commits || [];
         core.warning(JSON.stringify(commitComparison, null, 2));
-        if (!((_a = commitComparison.commits) === null || _a === void 0 ? void 0 : _a.length)) {
-            const commitComparisonUrl = commitComparison.html_url
-                || `${repo.html_url}/compare/${lastVersionTag.tag.commit.sha}...${defaultBranch.commit.sha}`;
-            core.info(`No commits found after last version tag: ${commitComparisonUrl}`);
+        if (!commitComparisonCommits.length) {
+            core.info(`No commits found after last version tag: ${commitComparison.html_url}`);
             return;
         }
         const commitComparisonFiles = commitComparison.files;
@@ -843,7 +860,7 @@ async function run() {
             }
         }
         const commitPullRequests = [];
-        forEachCommit: for (const commit of commitComparison.commits) {
+        forEachCommit: for (const commit of commitComparisonCommits) {
             const message = commit.commit.message;
             core.debug(`Testing if commit is allowed: ${message}: ${commit.html_url}`);
             for (const allowedCommitPrefix of allowedCommitPrefixes) {
@@ -881,7 +898,7 @@ async function run() {
             releaseDescription = '# What\'s Changed\n';
             for (const commitPullRequest of commitPullRequests) {
                 releaseDescription += `\n* ${commitPullRequest.commit.commit.message} (#${commitPullRequest.pullRequest.number})`;
-                const login = (_b = commitPullRequest.pullRequest.user) === null || _b === void 0 ? void 0 : _b.login;
+                const login = (_a = commitPullRequest.pullRequest.user) === null || _a === void 0 ? void 0 : _a.login;
                 if (login != null) {
                     releaseDescription += ` @${login}`;
                 }
