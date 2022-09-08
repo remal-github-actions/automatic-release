@@ -58,9 +58,7 @@ async function run(): Promise<void> {
         const commitComparisonCommits = commitComparison.commits || []
         core.warning(JSON.stringify(commitComparison, null, 2))
         if (!commitComparisonCommits.length) {
-            const commitComparisonUrl = commitComparison.html_url
-                || `${repo.html_url}/compare/${lastVersionTag.tag.commit.sha}...${defaultBranch.commit.sha}`
-            core.info(`No commits found after last version tag: ${commitComparisonUrl}`)
+            core.info(`No commits found after last version tag: ${commitComparison.html_url}`)
             return
         }
 
