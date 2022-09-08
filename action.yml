@@ -6,6 +6,10 @@ inputs:
     required: true
     default: '${{github.token}}'
     description: GitHub access token
+  versionIncrementMode:
+    required: true
+    default: 'patch'
+    description: "Which part of version should be incremented. Allowed values: 'major', 'minor', 'patch'."
   versionTagPrefix:
     required: false
     description: Prefix for new Git version tag
@@ -21,10 +25,6 @@ inputs:
   allowedPullRequestLabels:
     required: false
     description: Allowed Pull Request labels
-  versionIncrementMode:
-    required: true
-    default: 'patch'
-    description: "Which part of version should be incremented. Allowed values: 'major', 'minor', 'patch'."
   dryRun:
     required: true
     default: 'false'

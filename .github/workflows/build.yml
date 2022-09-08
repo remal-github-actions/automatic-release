@@ -79,9 +79,15 @@ jobs:
       uses: ./
       with:
         dryRun: 'true'
+        versionIncrementMode: 'patch'
         versionTagPrefix: 'v'
         expectedFilesToChange: |
           yarn.lock
+        allowedCommitPrefixes: |
+          [push-back]
+        allowedPullRequestLabels: |
+          dependencies
+          sync-with-template
 
 
     # $$$sync-with-template-modifiable-end$$$
