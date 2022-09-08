@@ -57,7 +57,7 @@ async function run(): Promise<void> {
         const defaultBranch = await retrieveDefaultBranch(octokit, repo)
         const commitComparison = await retrieveCommitComparison(octokit, defaultBranch, lastVersionTag.tag)
         if (!commitComparison.commits?.length) {
-            core.warning(`No commits found after last version tag: ${commitComparison.html_url}`)
+            core.warning(`No commits found after last version tag`)
             return
         }
 
