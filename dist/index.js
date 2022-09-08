@@ -498,7 +498,7 @@ async function retrieveCommitComparison(octokit, branch, tag) {
     return octokit.paginate(octokit.repos.compareCommitsWithBasehead, {
         owner: github_1.context.repo.owner,
         repo: github_1.context.repo.repo,
-        basehead: `${tag.name}...${branch.commit.sha}`,
+        basehead: `${tag.commit.sha}...${branch.commit.sha}`,
     });
 }
 exports.retrieveCommitComparison = retrieveCommitComparison;
@@ -813,8 +813,7 @@ async function run() {
             core.info(`Skipping release creation, as no version tags found for repository ${repo.html_url}`);
             return;
         }
-        const tagHtmlUrl = `${repo.html_url}/releases/tag/${lastVersionTag.tag.name}`;
-        core.info(`Last version: '${lastVersionTag.version}', tag: ${tagHtmlUrl}`);
+        core.info(`Last version: '${lastVersionTag.version}', tag: ${repo.html_url}/releases/tag/${lastVersionTag.tag.name}`);
         if (lastVersionTag.version.hasSuffix) {
             core.warning(`Skipping release creation, as last version has suffix: '${lastVersionTag.version}'`);
             return;
@@ -822,7 +821,9 @@ async function run() {
         const defaultBranch = await (0, retrieveDefaultBranch_1.retrieveDefaultBranch)(octokit, repo);
         const commitComparison = await (0, retrieveCommitComparison_1.retrieveCommitComparison)(octokit, defaultBranch, lastVersionTag.tag);
         if (!((_a = commitComparison.commits) === null || _a === void 0 ? void 0 : _a.length)) {
-            core.info(`No commits found after last version tag: ${commitComparison.html_url || tagHtmlUrl}`);
+            const commitComparisonUrl = commitComparison.html_url
+                || `${repo.html_url}/compare/${lastVersionTag.tag.commit.sha}...${defaultBranch.commit.sha}`;
+            core.info(`No commits found after last version tag: ${commitComparisonUrl}`);
             return;
         }
         const commitComparisonFiles = commitComparison.files;
