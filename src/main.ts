@@ -73,7 +73,7 @@ async function run(): Promise<void> {
                 }
             }
             if (!areExpectedFilesChanged) {
-                core.warning(`No expected files were changed:\n  ${expectedFilesToChange.join('\n  ')}`)
+                core.info(`No expected files were changed:\n  ${expectedFilesToChange.join('\n  ')}`)
                 return
             }
         }
