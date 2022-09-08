@@ -905,7 +905,7 @@ async function run() {
         if (commitPullRequests.length) {
             releaseDescription = '# What\'s Changed\n';
             for (const commitPullRequest of commitPullRequests) {
-                releaseDescription += `\n* ${commitPullRequest.commit.commit.message} (#${commitPullRequest.pullRequest.number})`;
+                releaseDescription += `\n* ${commitPullRequest.pullRequest.title} (#${commitPullRequest.pullRequest.number})`;
                 const login = (_a = commitPullRequest.pullRequest.user) === null || _a === void 0 ? void 0 : _a.login;
                 if (login != null) {
                     releaseDescription += ` @${login}`;
