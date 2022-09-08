@@ -55,6 +55,7 @@ async function run(): Promise<void> {
 
         const defaultBranch = await retrieveDefaultBranch(octokit, repo)
         const commitComparison = await retrieveCommitComparison(octokit, defaultBranch, lastVersionTag.tag)
+        core.warning(JSON.stringify(commitComparison.commits, null, 2))
         if (!commitComparison.commits?.length) {
             const commitComparisonUrl = commitComparison.html_url
                 || `${repo.html_url}/compare/${lastVersionTag.tag.commit.sha}...${defaultBranch.commit.sha}`
