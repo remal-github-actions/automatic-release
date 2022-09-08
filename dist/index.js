@@ -820,7 +820,7 @@ async function run() {
         }
         const defaultBranch = await (0, retrieveDefaultBranch_1.retrieveDefaultBranch)(octokit, repo);
         const commitComparison = await (0, retrieveCommitComparison_1.retrieveCommitComparison)(octokit, defaultBranch, lastVersionTag.tag);
-        core.warning(JSON.stringify(commitComparison.commits, null, 2));
+        core.warning(JSON.stringify(commitComparison, null, 2));
         if (!((_a = commitComparison.commits) === null || _a === void 0 ? void 0 : _a.length)) {
             const commitComparisonUrl = commitComparison.html_url
                 || `${repo.html_url}/compare/${lastVersionTag.tag.commit.sha}...${defaultBranch.commit.sha}`;
