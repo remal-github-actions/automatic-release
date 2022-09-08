@@ -55,8 +55,9 @@ async function run(): Promise<void> {
 
         const defaultBranch = await retrieveDefaultBranch(octokit, repo)
         const commitComparison = await retrieveCommitComparison(octokit, defaultBranch, lastVersionTag.tag)
+        const commitComparisonCommits = commitComparison.commits || []
         core.warning(JSON.stringify(commitComparison, null, 2))
-        if (!commitComparison.commits?.length) {
+        if (!commitComparisonCommits.length) {
             const commitComparisonUrl = commitComparison.html_url
                 || `${repo.html_url}/compare/${lastVersionTag.tag.commit.sha}...${defaultBranch.commit.sha}`
             core.info(`No commits found after last version tag: ${commitComparisonUrl}`)
@@ -83,7 +84,7 @@ async function run(): Promise<void> {
 
         const commitPullRequests: CommitPullRequest[] = []
 
-        forEachCommit: for (const commit of commitComparison.commits) {
+        forEachCommit: for (const commit of commitComparisonCommits) {
             const message = commit.commit.message
             core.debug(`Testing if commit is allowed: ${message}: ${commit.html_url}`)
 
