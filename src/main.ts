@@ -43,7 +43,7 @@ async function run(): Promise<void> {
 
         const lastVersionTag = await retrieveLastVersionTag(octokit, allowedVersionTagPrefixes)
         if (lastVersionTag == null) {
-            core.warning(`Skipping release creation, as no version tags found for repository ${repo.html_url}`)
+            core.info(`Skipping release creation, as no version tags found for repository ${repo.html_url}`)
             return
         } else {
             core.info(`Last version: '${lastVersionTag.version}', tag: ${repo.html_url}/releases/tag/${lastVersionTag.tag.name}`)
@@ -57,7 +57,7 @@ async function run(): Promise<void> {
         const defaultBranch = await retrieveDefaultBranch(octokit, repo)
         const commitComparison = await retrieveCommitComparison(octokit, defaultBranch, lastVersionTag.tag)
         if (!commitComparison.commits?.length) {
-            core.warning(`No commits found after last version tag`)
+            core.info(`No commits found after last version tag`)
             return
         }
 
@@ -112,7 +112,7 @@ async function run(): Promise<void> {
                 }
             }
 
-            core.warning(`Not allowed commit: ${message}: ${commit.html_url}`)
+            core.info(`Not allowed commit: ${message}: ${commit.html_url}`)
             return
         }
 
