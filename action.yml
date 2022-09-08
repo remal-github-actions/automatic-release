@@ -4,7 +4,31 @@ description: Template action description
 inputs:
   githubToken:
     required: true
-    description: GitHub access token with at least 'public_repo' (use 'repo' scope instead of 'public_repo' for private repositories)
+    default: '${{github.token}}'
+    description: GitHub access token
+  versionTagPrefix:
+    required: false
+    description: Prefix for new Git version tag
+  allowedVersionTagPrefixes:
+    required: false
+    description: Allowed prefixes for Git version tags
+  expectedFilesToChange:
+    required: false
+    description: One of these files should be changed to make a new release. Glob syntax is supported.
+  allowedCommitPrefixes:
+    required: false
+    description: Allowed commit messages prefixes
+  allowedPullRequestLabels:
+    required: false
+    description: Allowed Pull Request labels
+  versionIncrementMode:
+    required: true
+    default: 'patch'
+    description: "Which part of version should be incremented. Allowed values: 'major', 'minor', 'patch'."
+  dryRun:
+    required: true
+    default: 'false'
+    description: Set to 'true' to enable dry run
 
 runs:
   using: node16

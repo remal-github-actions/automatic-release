@@ -1,0 +1,27 @@
+import {components} from '@octokit/openapi-types'
+import {Version} from './Version'
+
+export type Repo = components['schemas']['full-repository']
+export type CommitComparison = components['schemas']['commit-comparison']
+export type Tag = components['schemas']['tag']
+export type Commit = components['schemas']['commit']
+export type Branch = components['schemas']['branch-short']
+export type PullRequestSimple = components['schemas']['pull-request-simple']
+
+export const versionIncrementModes = [
+    'major',
+    'minor',
+    'patch',
+] as const
+
+export type VersionIncrementMode = typeof versionIncrementModes[number]
+
+export interface VersionTag {
+    version: Version
+    tag: Tag
+}
+
+export interface CommitPullRequest {
+    commit: Commit
+    pullRequest: PullRequestSimple
+}
