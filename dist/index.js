@@ -810,12 +810,11 @@ async function run() {
         const repo = await (0, retrieveRepo_1.retrieveRepo)(octokit);
         const lastVersionTag = await (0, retrieveVersionTags_1.retrieveLastVersionTag)(octokit, allowedVersionTagPrefixes);
         if (lastVersionTag == null) {
-            core.warning(`Skipping release creation, as no version tags found for repository ${repo.html_url}`);
+            core.info(`Skipping release creation, as no version tags found for repository ${repo.html_url}`);
             return;
         }
-        else {
-            core.info(`Last version: '${lastVersionTag.version}', tag: ${repo.html_url}/releases/tag/${lastVersionTag.tag.name}`);
-        }
+        const tagHtmlUrl = `${repo.html_url}/releases/tag/${lastVersionTag.tag.name}`;
+        core.info(`Last version: '${lastVersionTag.version}', tag: ${tagHtmlUrl}`);
         if (lastVersionTag.version.hasSuffix) {
             core.warning(`Skipping release creation, as last version has suffix: '${lastVersionTag.version}'`);
             return;
@@ -823,7 +822,7 @@ async function run() {
         const defaultBranch = await (0, retrieveDefaultBranch_1.retrieveDefaultBranch)(octokit, repo);
         const commitComparison = await (0, retrieveCommitComparison_1.retrieveCommitComparison)(octokit, defaultBranch, lastVersionTag.tag);
         if (!((_a = commitComparison.commits) === null || _a === void 0 ? void 0 : _a.length)) {
-            core.warning(`No commits found after last version tag`);
+            core.info(`No commits found after last version tag: ${commitComparison.html_url || tagHtmlUrl}`);
             return;
         }
         const commitComparisonFiles = commitComparison.files;
@@ -870,7 +869,7 @@ async function run() {
                     }
                 }
             }
-            core.warning(`Not allowed commit: ${message}: ${commit.html_url}`);
+            core.info(`Not allowed commit: ${message}: ${commit.html_url}`);
             return;
         }
         const releaseVersion = (0, incrementVersion_1.incrementVersion)(lastVersionTag.version, versionIncrementMode);
