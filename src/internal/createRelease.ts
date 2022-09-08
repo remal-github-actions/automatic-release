@@ -1,3 +1,4 @@
+import * as core from '@actions/core'
 import {context} from '@actions/github'
 import {Octokit} from './octokit'
 import {Branch} from './types'
@@ -10,6 +11,12 @@ export async function createRelease(
     releaseTag: string,
     releaseDescription: string
 ): Promise<void> {
+    core.debug(`Creating a new release.`
+        + ` Branch: '${branch.name}'.`
+        + ` Release version: '${releaseVersion}'.`
+        + ` Release tag: '${releaseTag}'.`
+        + ` Release description: '${releaseDescription}'.`
+    )
     await octokit.repos.createRelease({
         owner: context.repo.owner,
         repo: context.repo.repo,

@@ -1,12 +1,16 @@
+import * as core from '@actions/core'
 import {context} from '@actions/github'
 import {Octokit} from './octokit'
 import {VersionTag} from './types'
 import {isVersionString, Version} from './Version'
 
-export async function retrieveLastVersionTags(
+export async function retrieveVersionTags(
     octokit: Octokit,
     versionTagPrefixes: string[] = []
 ): Promise<VersionTag[]> {
+    core.debug(`Retrieving version tags.`
+        + ` Version tag prefixes: '${versionTagPrefixes.join("', '")}'.`
+    )
     const tags = await octokit.paginate(octokit.repos.listTags, {
         owner: context.repo.owner,
         repo: context.repo.repo,
@@ -50,7 +54,7 @@ export async function retrieveLastVersionTag(
     octokit: Octokit,
     tagVersionPrefixes: string[] = []
 ): Promise<VersionTag | undefined> {
-    return retrieveLastVersionTags(octokit, tagVersionPrefixes)
+    return retrieveVersionTags(octokit, tagVersionPrefixes)
         .then(versionTags => {
             if (versionTags.length) {
                 return versionTags[0]

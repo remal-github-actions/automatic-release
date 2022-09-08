@@ -5,9 +5,9 @@ import {incrementVersion} from './internal/incrementVersion'
 import {newOctokitInstance} from './internal/octokit'
 import {retrieveCommitComparison} from './internal/retrieveCommitComparison'
 import {retrieveDefaultBranch} from './internal/retrieveDefaultBranch'
-import {retrieveLastVersionTag} from './internal/retrieveLastVersionTags'
 import {retrievePullRequestsAssociatedWithCommit} from './internal/retrievePullRequestsAssociatedWithCommit'
 import {retrieveRepo} from './internal/retrieveRepo'
+import {retrieveLastVersionTag} from './internal/retrieveVersionTags'
 import {CommitPullRequest, VersionIncrementMode} from './internal/types'
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
