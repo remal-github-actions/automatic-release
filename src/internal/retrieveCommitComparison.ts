@@ -11,6 +11,6 @@ export async function retrieveCommitComparison(octokit: Octokit, branch: Branch,
     return octokit.paginate(octokit.repos.compareCommitsWithBasehead, {
         owner: context.repo.owner,
         repo: context.repo.repo,
-        basehead: `${tag.name}...${branch.commit.sha}`,
+        basehead: `${tag.commit.sha}...${branch.commit.sha}`,
     })
 }
