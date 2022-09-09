@@ -875,7 +875,8 @@ async function run() {
                 if (message.startsWith(allowedCommitPrefix)) {
                     const messageAfterPrefix = message.substring(allowedCommitPrefix.length);
                     if (!messageAfterPrefix.length || messageAfterPrefix.match(/^\W/)) {
-                        core.info(`Allowed commit by commit message prefix ('${allowedCommitPrefix}'): ${message}: ${commit.html_url}`);
+                        core.info(`Allowed commit by commit message prefix ('${allowedCommitPrefix}')`
+                            + `: ${message.split(/[\n\r]+/)[0]}: ${commit.html_url}`);
                         continue forEachCommit;
                     }
                 }
@@ -885,7 +886,8 @@ async function run() {
                 const labels = pullRequestAssociatedWithCommit.labels.map(it => it.name);
                 for (const allowedPullRequestLabel of allowedPullRequestLabels) {
                     if (labels.includes(allowedPullRequestLabel)) {
-                        core.info(`Allowed commit by Pull Request label ('${allowedPullRequestLabel}'): ${message}: ${commit.html_url}`);
+                        core.info(`Allowed commit by Pull Request label ('${allowedPullRequestLabel}')`
+                            + `: ${message.split(/[\n\r]+/)[0]}: ${pullRequestAssociatedWithCommit.html_url}`);
                         if (!commitPullRequests.map(it => it.commit.sha).includes(commit.sha)) {
                             commitPullRequests.push({
                                 commit,
@@ -901,19 +903,47 @@ async function run() {
         }
         const releaseVersion = (0, incrementVersion_1.incrementVersion)(lastVersionTag.version, versionIncrementMode);
         const releaseTag = `${versionTagPrefix}${releaseVersion}`;
-        let releaseDescription = '';
+        const changeLogItems = [];
         if (commitPullRequests.length) {
-            releaseDescription = '# What\'s Changed\n';
             for (const commitPullRequest of commitPullRequests) {
-                releaseDescription += `\n* ${commitPullRequest.pullRequest.title} (#${commitPullRequest.pullRequest.number})`;
-                const login = (_a = commitPullRequest.pullRequest.user) === null || _a === void 0 ? void 0 : _a.login;
-                if (login != null) {
-                    releaseDescription += ` @${login}`;
+                const message = commitPullRequest.pullRequest.title;
+                const author = ((_a = commitPullRequest.pullRequest.user) === null || _a === void 0 ? void 0 : _a.login) || undefined;
+                const pullRequestNumber = commitPullRequest.pullRequest.number;
+                const alreadyCreatedChangeLogItem = changeLogItems.find(item => item.message === message && item.author === author);
+                if (alreadyCreatedChangeLogItem != null) {
+                    if (!alreadyCreatedChangeLogItem.pullRequestNumbers.includes(pullRequestNumber)) {
+                        alreadyCreatedChangeLogItem.pullRequestNumbers.push(pullRequestNumber);
+                    }
+                }
+                else {
+                    changeLogItems.push({
+                        message,
+                        author,
+                        pullRequestNumbers: [pullRequestNumber],
+                    });
                 }
             }
         }
-        core.info(`Creating a new release ${releaseVersion} (Git tag: ${releaseTag})`
-            + (releaseDescription.length ? ` with description:\n${releaseDescription}` : ` with empty description`));
+        let releaseDescription = '';
+        if (changeLogItems.length) {
+            releaseDescription = '# What\'s Changed\n';
+            for (const changeLogItem of changeLogItems) {
+                releaseDescription += [
+                    '\n*',
+                    changeLogItem.message,
+                    changeLogItem.pullRequestNumbers.length
+                        ? `(#${changeLogItem.pullRequestNumbers.join(', #')})`
+                        : '',
+                    changeLogItem.author != null
+                        ? `@${changeLogItem.author}`
+                        : ''
+                ].filter(it => it.length).join(' ');
+            }
+        }
+        core.info(`Creating a new release '${releaseVersion}' with Git tag: '${releaseTag}', and with `
+            + (releaseDescription.length
+                ? `description:\n  ${releaseDescription.split('\n').join('\n  ')}`
+                : `empty description`));
         if (dryRun) {
             core.warning(`Skipping release creation, as dry run is enabled`);
             return;
