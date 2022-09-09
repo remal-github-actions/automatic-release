@@ -177,7 +177,14 @@ async function run(): Promise<void> {
             return
         }
 
-        await createRelease(octokit, defaultBranch, releaseVersion, releaseTag, releaseDescription)
+        const createdRelease = await createRelease(
+            octokit,
+            defaultBranch,
+            releaseVersion,
+            releaseTag,
+            releaseDescription
+        )
+        core.info(`Created release: ${createdRelease.html_url}`)
 
 
     } catch (error) {

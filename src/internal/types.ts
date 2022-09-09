@@ -7,6 +7,7 @@ export type Tag = components['schemas']['tag']
 export type Commit = components['schemas']['commit']
 export type Branch = components['schemas']['branch-short']
 export type PullRequestSimple = components['schemas']['pull-request-simple']
+export type Release = components['schemas']['release']
 
 export const versionIncrementModes = [
     'major',
