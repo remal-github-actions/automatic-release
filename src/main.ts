@@ -158,7 +158,7 @@ async function run(): Promise<void> {
                         ? `(#${changeLogItem.pullRequestNumbers.join(', #')})`
                         : '',
                     changeLogItem.author != null
-                        ? `@${changeLogItem.author}`
+                        ? `@${changeLogItem.author.replace(/\[bot\]$/, '')}`
                         : ''
                 ].filter(it => it.length).join(' ')
             }
