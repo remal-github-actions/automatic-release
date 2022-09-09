@@ -25,3 +25,9 @@ export interface CommitPullRequest {
     commit: Commit
     pullRequest: PullRequestSimple
 }
+
+export interface ChangeLogItem {
+    message: string
+    author?: string
+    pullRequestNumbers: number[]
+}

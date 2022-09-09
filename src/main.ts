@@ -8,7 +8,7 @@ import {retrieveDefaultBranch} from './internal/retrieveDefaultBranch'
 import {retrievePullRequestsAssociatedWithCommit} from './internal/retrievePullRequestsAssociatedWithCommit'
 import {retrieveRepo} from './internal/retrieveRepo'
 import {retrieveLastVersionTag} from './internal/retrieveVersionTags'
-import {CommitPullRequest, VersionIncrementMode} from './internal/types'
+import {ChangeLogItem, CommitPullRequest, VersionIncrementMode} from './internal/types'
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -89,7 +89,9 @@ async function run(): Promise<void> {
                 if (message.startsWith(allowedCommitPrefix)) {
                     const messageAfterPrefix = message.substring(allowedCommitPrefix.length)
                     if (!messageAfterPrefix.length || messageAfterPrefix.match(/^\W/)) {
-                        core.info(`Allowed commit by commit message prefix ('${allowedCommitPrefix}'): ${message}: ${commit.html_url}`)
+                        core.info(`Allowed commit by commit message prefix ('${allowedCommitPrefix}')`
+                            + `: ${message.split(/[\n\r]+/)[0]}: ${commit.html_url}`
+                        )
                         continue forEachCommit
                     }
                 }
@@ -100,7 +102,9 @@ async function run(): Promise<void> {
                 const labels = pullRequestAssociatedWithCommit.labels.map(it => it.name)
                 for (const allowedPullRequestLabel of allowedPullRequestLabels) {
                     if (labels.includes(allowedPullRequestLabel)) {
-                        core.info(`Allowed commit by Pull Request label ('${allowedPullRequestLabel}'): ${message}: ${commit.html_url}`)
+                        core.info(`Allowed commit by Pull Request label ('${allowedPullRequestLabel}')`
+                            + `: ${message.split(/[\n\r]+/)[0]}: ${pullRequestAssociatedWithCommit.html_url}`
+                        )
                         if (!commitPullRequests.map(it => it.commit.sha).includes(commit.sha)) {
                             commitPullRequests.push({
                                 commit,
@@ -121,20 +125,51 @@ async function run(): Promise<void> {
 
         const releaseTag = `${versionTagPrefix}${releaseVersion}`
 
-        let releaseDescription = ''
+        const changeLogItems: ChangeLogItem[] = []
         if (commitPullRequests.length) {
-            releaseDescription = '# What\'s Changed\n'
             for (const commitPullRequest of commitPullRequests) {
-                releaseDescription += `\n* ${commitPullRequest.pullRequest.title} (#${commitPullRequest.pullRequest.number})`
-                const login = commitPullRequest.pullRequest.user?.login
-                if (login != null) {
-                    releaseDescription += ` @${login}`
+                const message = commitPullRequest.pullRequest.title
+                const author = commitPullRequest.pullRequest.user?.login || undefined
+                const pullRequestNumber = commitPullRequest.pullRequest.number
+                const alreadyCreatedChangeLogItem = changeLogItems.find(item =>
+                    item.message === message && item.author === author
+                )
+                if (alreadyCreatedChangeLogItem != null) {
+                    if (!alreadyCreatedChangeLogItem.pullRequestNumbers.includes(pullRequestNumber)) {
+                        alreadyCreatedChangeLogItem.pullRequestNumbers.push(pullRequestNumber)
+                    }
+                } else {
+                    changeLogItems.push({
+                        message,
+                        author,
+                        pullRequestNumbers: [pullRequestNumber],
+                    })
                 }
             }
         }
+        let releaseDescription = ''
+        if (changeLogItems.length) {
+            releaseDescription = '# What\'s Changed\n'
+            for (const changeLogItem of changeLogItems) {
+                releaseDescription += [
+                    '\n*',
+                    changeLogItem.message,
+                    changeLogItem.pullRequestNumbers.length
+                        ? `(#${changeLogItem.pullRequestNumbers.join(', #')})`
+                        : '',
+                    changeLogItem.author != null
+                        ? `@${changeLogItem.author}`
+                        : ''
+                ].filter(it => it.length).join(' ')
+            }
+        }
 
-        core.info(`Creating a new release ${releaseVersion} (Git tag: ${releaseTag})`
-            + (releaseDescription.length ? ` with description:\n${releaseDescription}` : ` with empty description`)
+
+        core.info(`Creating a new release '${releaseVersion}' with Git tag: '${releaseTag}', and with `
+            + (releaseDescription.length
+                    ? `description:\n  ${releaseDescription.split('\n').join('\n  ')}`
+                    : `empty description`
+            )
         )
 
         if (dryRun) {
