@@ -79,6 +79,7 @@ jobs:
       uses: ./
       with:
         dryRun: 'true'
+        githubToken: ${{secrets.PUSH_BACK_TOKEN}}
         versionIncrementMode: 'patch'
         versionTagPrefix: 'v'
         expectedFilesToChange: |
