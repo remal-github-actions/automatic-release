@@ -317,14 +317,14 @@ async function createRelease(octokit, branch, releaseVersion, releaseTag, releas
         + ` Release version: '${releaseVersion}'.`
         + ` Release tag: '${releaseTag}'.`
         + ` Release description: '${releaseDescription}'.`);
-    await octokit.repos.createRelease({
+    return octokit.repos.createRelease({
         owner: github_1.context.repo.owner,
         repo: github_1.context.repo.repo,
         target_commitish: branch.name,
         tag_name: releaseTag,
         name: releaseVersion.toString(),
         body: releaseDescription,
-    });
+    }).then(it => it.data);
 }
 exports.createRelease = createRelease;
 
@@ -935,7 +935,7 @@ async function run() {
                         ? `(#${changeLogItem.pullRequestNumbers.join(', #')})`
                         : '',
                     changeLogItem.author != null
-                        ? `@${changeLogItem.author}`
+                        ? `@${changeLogItem.author.replace(/\[bot\]$/, '')}`
                         : ''
                 ].filter(it => it.length).join(' ');
             }
@@ -948,7 +948,8 @@ async function run() {
             core.warning(`Skipping release creation, as dry run is enabled`);
             return;
         }
-        await (0, createRelease_1.createRelease)(octokit, defaultBranch, releaseVersion, releaseTag, releaseDescription);
+        const createdRelease = await (0, createRelease_1.createRelease)(octokit, defaultBranch, releaseVersion, releaseTag, releaseDescription);
+        core.info(`Created release: ${createdRelease.html_url}`);
     }
     catch (error) {
         core.setFailed(error instanceof Error ? error : error.toString());
