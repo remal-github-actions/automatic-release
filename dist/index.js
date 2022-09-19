@@ -924,7 +924,7 @@ async function run() {
                 }
             }
         }
-        let releaseDescription = `${releaseTag}`;
+        let releaseDescription = 'No release notes';
         if (changeLogItems.length) {
             releaseDescription = '# What\'s Changed\n';
             for (const changeLogItem of changeLogItems) {
