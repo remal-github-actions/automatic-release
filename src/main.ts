@@ -147,7 +147,8 @@ async function run(): Promise<void> {
                 }
             }
         }
-        let releaseDescription = ''
+
+        let releaseDescription = `${releaseTag}`
         if (changeLogItems.length) {
             releaseDescription = '# What\'s Changed\n'
             for (const changeLogItem of changeLogItems) {
