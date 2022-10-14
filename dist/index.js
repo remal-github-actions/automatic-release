@@ -924,9 +924,9 @@ async function run() {
                 }
             }
         }
-        let releaseDescription = 'No release notes';
+        let releaseDescription = '_Automatic release_';
         if (changeLogItems.length) {
-            releaseDescription = '# What\'s Changed\n';
+            releaseDescription += '\n# What\'s Changed\n';
             for (const changeLogItem of changeLogItems) {
                 releaseDescription += [
                     '\n*',
