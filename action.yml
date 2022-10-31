@@ -24,6 +24,9 @@ inputs:
   allowedPullRequestLabels:
     required: false
     description: Allowed Pull Request labels
+  skippedChangelogCommitPrefixes:
+    required: false
+    description: Commit messages that won't be displayed in changelog
   dryRun:
     required: true
     default: 'false'
