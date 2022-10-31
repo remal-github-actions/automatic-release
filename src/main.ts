@@ -102,6 +102,7 @@ async function run(): Promise<void> {
 
         function addChangelogItem(
             message: string,
+            originalMessage: string,
             author: string | null | undefined = undefined,
             pullRequestNumber: number | null | undefined = undefined
         ) {
@@ -109,12 +110,12 @@ async function run(): Promise<void> {
             if (!message.length) return
 
             for (const skippedChangelogCommitPrefix of skippedChangelogCommitPrefixes) {
-                const messageAfterPrefix = message.substring(skippedChangelogCommitPrefix.length)
+                const messageAfterPrefix = originalMessage.substring(skippedChangelogCommitPrefix.length)
                 if (!messageAfterPrefix.length
                     || messageAfterPrefix.match(/^\W/)
                     || skippedChangelogCommitPrefix.match(/\W$/)
                 ) {
-                    core.info(`Skipping message from changelog by prefix '${skippedChangelogCommitPrefix}': ${message}`)
+                    core.info(`Skipping message from changelog by prefix '${skippedChangelogCommitPrefix}': ${originalMessage}`)
                     return
                 }
             }
@@ -154,6 +155,7 @@ async function run(): Promise<void> {
                         core.info(`Allowed commit by Pull Request label ('${allowedPullRequestLabel}'): ${message}: ${pullRequestAssociatedWithCommit.html_url}`)
                         addChangelogItem(
                             pullRequestAssociatedWithCommit.title,
+                            pullRequestAssociatedWithCommit.title,
                             pullRequestAssociatedWithCommit.user?.login || undefined,
                             pullRequestAssociatedWithCommit.number
                         )
@@ -171,7 +173,8 @@ async function run(): Promise<void> {
                     ) {
                         core.info(`Allowed commit by commit message prefix ('${allowedCommitPrefix}'): ${message}: ${commit.html_url}`)
                         addChangelogItem(
-                            messageAfterPrefix
+                            messageAfterPrefix,
+                            message
                         )
                         continue forEachCommit
                     }
