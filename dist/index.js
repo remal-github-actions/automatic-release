@@ -817,19 +817,24 @@ const githubToken = core.getInput('githubToken', { required: true });
 const versionTagPrefix = core.getInput('versionTagPrefix', { required: false });
 const allowedVersionTagPrefixes = core.getInput('allowedVersionTagPrefixes', { required: false })
     .split(/[\s,;]+/)
+    .map(it => it.trim())
     .filter(it => it.length);
 allowedVersionTagPrefixes.push(versionTagPrefix);
 const expectedFilesToChange = core.getInput('expectedFilesToChange', { required: false })
     .split(/[\s,;]+/)
+    .map(it => it.trim())
     .filter(it => it.length);
 const allowedCommitPrefixes = core.getInput('allowedCommitPrefixes', { required: false })
     .split(/[\s,;]+/)
+    .map(it => it.trim())
     .filter(it => it.length);
 const allowedPullRequestLabels = core.getInput('allowedPullRequestLabels', { required: false })
     .split(/[\s,;]+/)
+    .map(it => it.trim())
     .filter(it => it.length);
 const skippedChangelogCommitPrefixes = core.getInput('skippedChangelogCommitPrefixes', { required: false })
     .split(/[\s,;]+/)
+    .map(it => it.trim())
     .filter(it => it.length);
 const versionIncrementMode = core.getInput('versionIncrementMode', { required: true }).toLowerCase();
 const dryRun = core.getInput('dryRun', { required: true }).toLowerCase() === 'true';
@@ -872,8 +877,12 @@ async function run() {
         }
         const changeLogItems = [];
         function addChangelogItem(message, author = undefined, pullRequestNumber = undefined) {
+            message = message.trim();
+            if (!message.length)
+                return;
             for (const skippedChangelogCommitPrefix of skippedChangelogCommitPrefixes) {
                 if (message.startsWith(skippedChangelogCommitPrefix)) {
+                    core.info(`Skipping message from changelog by prefix '${skippedChangelogCommitPrefix}': ${message}`);
                     return;
                 }
             }
@@ -914,7 +923,7 @@ async function run() {
             }
             for (const allowedCommitPrefix of allowedCommitPrefixes) {
                 if (message.startsWith(allowedCommitPrefix)) {
-                    const messageAfterPrefix = message.substring(allowedCommitPrefix.length);
+                    const messageAfterPrefix = message.substring(allowedCommitPrefix.length).trim();
                     if (!messageAfterPrefix.length || messageAfterPrefix.match(/^\W/)) {
                         core.info(`Allowed commit by commit message prefix ('${allowedCommitPrefix}')`
                             + `: ${message.split(/[\n\r]+/)[0]}: ${commit.html_url}`);
@@ -930,7 +939,7 @@ async function run() {
         const releaseTag = `${versionTagPrefix}${releaseVersion}`;
         let releaseDescription = '_Automatic release_';
         if (changeLogItems.length) {
-            releaseDescription += '\n# What\'s Changed\n';
+            releaseDescription += '\n\n# What\'s Changed\n';
             for (const changeLogItem of changeLogItems) {
                 releaseDescription += [
                     '\n*',
