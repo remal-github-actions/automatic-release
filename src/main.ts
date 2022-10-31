@@ -137,8 +137,8 @@ async function run(): Promise<void> {
         }
 
         forEachCommit: for (const commit of commitComparisonCommits) {
-            const message = commit.commit.message
-            core.debug(`Testing if commit is allowed: ${message}: ${commit.html_url}`)
+            const message = commit.commit.message.trim()
+            core.debug(`Testing if commit is allowed: ${commit.html_url}: ${message}`)
 
             const pullRequestsAssociatedWithCommit = await retrievePullRequestsAssociatedWithCommit(octokit, commit)
             for (const pullRequestAssociatedWithCommit of pullRequestsAssociatedWithCommit) {
@@ -160,8 +160,11 @@ async function run(): Promise<void> {
 
             for (const allowedCommitPrefix of allowedCommitPrefixes) {
                 if (message.startsWith(allowedCommitPrefix)) {
-                    const messageAfterPrefix = message.substring(allowedCommitPrefix.length).trim()
-                    if (!messageAfterPrefix.length || messageAfterPrefix.match(/^\W/)) {
+                    const messageAfterPrefix = message.substring(allowedCommitPrefix.length)
+                    if (!messageAfterPrefix.length
+                        || messageAfterPrefix.match(/^\W/)
+                        || allowedCommitPrefix.match(/\W$/)
+                    ) {
                         core.info(`Allowed commit by commit message prefix ('${allowedCommitPrefix}')`
                             + `: ${message.split(/[\n\r]+/)[0]}: ${commit.html_url}`
                         )
