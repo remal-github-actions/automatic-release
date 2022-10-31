@@ -891,7 +891,10 @@ async function run() {
             if (!message.length)
                 return;
             for (const skippedChangelogCommitPrefix of skippedChangelogCommitPrefixes) {
-                if (message.startsWith(skippedChangelogCommitPrefix)) {
+                const messageAfterPrefix = message.substring(skippedChangelogCommitPrefix.length);
+                if (!messageAfterPrefix.length
+                    || messageAfterPrefix.match(/^\W/)
+                    || skippedChangelogCommitPrefix.match(/\W$/)) {
                     core.info(`Skipping message from changelog by prefix '${skippedChangelogCommitPrefix}': ${message}`);
                     return;
                 }
