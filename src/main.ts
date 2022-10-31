@@ -110,13 +110,15 @@ async function run(): Promise<void> {
             if (!message.length) return
 
             for (const skippedChangelogCommitPrefix of skippedChangelogCommitPrefixes) {
-                const messageAfterPrefix = originalMessage.substring(skippedChangelogCommitPrefix.length)
-                if (!messageAfterPrefix.length
-                    || messageAfterPrefix.match(/^\W/)
-                    || skippedChangelogCommitPrefix.match(/\W$/)
-                ) {
-                    core.info(`Skipping message from changelog by prefix '${skippedChangelogCommitPrefix}': ${originalMessage}`)
-                    return
+                if (originalMessage.startsWith(skippedChangelogCommitPrefix)) {
+                    const messageAfterPrefix = originalMessage.substring(skippedChangelogCommitPrefix.length)
+                    if (!messageAfterPrefix.length
+                        || messageAfterPrefix.match(/^\W/)
+                        || skippedChangelogCommitPrefix.match(/\W$/)
+                    ) {
+                        core.info(`Skipping message from changelog by prefix '${skippedChangelogCommitPrefix}': ${originalMessage}`)
+                        return
+                    }
                 }
             }
 
