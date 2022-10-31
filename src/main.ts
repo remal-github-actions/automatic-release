@@ -137,7 +137,9 @@ async function run(): Promise<void> {
         }
 
         forEachCommit: for (const commit of commitComparisonCommits) {
-            const message = commit.commit.message.trim()
+            const message = commit.commit.message
+                .split(/[\n\r]+/)[0]
+                .trim()
             core.debug(`Testing if commit is allowed: ${commit.html_url}: ${message}`)
 
             const pullRequestsAssociatedWithCommit = await retrievePullRequestsAssociatedWithCommit(octokit, commit)
@@ -145,9 +147,7 @@ async function run(): Promise<void> {
                 const labels = pullRequestAssociatedWithCommit.labels.map(it => it.name)
                 for (const allowedPullRequestLabel of allowedPullRequestLabels) {
                     if (labels.includes(allowedPullRequestLabel)) {
-                        core.info(`Allowed commit by Pull Request label ('${allowedPullRequestLabel}')`
-                            + `: ${message.split(/[\n\r]+/)[0]}: ${pullRequestAssociatedWithCommit.html_url}`
-                        )
+                        core.info(`Allowed commit by Pull Request label ('${allowedPullRequestLabel}'): ${message}: ${pullRequestAssociatedWithCommit.html_url}`)
                         addChangelogItem(
                             pullRequestAssociatedWithCommit.title,
                             pullRequestAssociatedWithCommit.user?.login || undefined,
@@ -165,9 +165,7 @@ async function run(): Promise<void> {
                         || messageAfterPrefix.match(/^\W/)
                         || allowedCommitPrefix.match(/\W$/)
                     ) {
-                        core.info(`Allowed commit by commit message prefix ('${allowedCommitPrefix}')`
-                            + `: ${message.split(/[\n\r]+/)[0]}: ${commit.html_url}`
-                        )
+                        core.info(`Allowed commit by commit message prefix ('${allowedCommitPrefix}'): ${message}: ${commit.html_url}`)
                         addChangelogItem(
                             messageAfterPrefix
                         )
