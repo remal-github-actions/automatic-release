@@ -917,15 +917,16 @@ async function run() {
             }
         }
         forEachCommit: for (const commit of commitComparisonCommits) {
-            const message = commit.commit.message.trim();
+            const message = commit.commit.message
+                .split(/[\n\r]+/)[0]
+                .trim();
             core.debug(`Testing if commit is allowed: ${commit.html_url}: ${message}`);
             const pullRequestsAssociatedWithCommit = await (0, retrievePullRequestsAssociatedWithCommit_1.retrievePullRequestsAssociatedWithCommit)(octokit, commit);
             for (const pullRequestAssociatedWithCommit of pullRequestsAssociatedWithCommit) {
                 const labels = pullRequestAssociatedWithCommit.labels.map(it => it.name);
                 for (const allowedPullRequestLabel of allowedPullRequestLabels) {
                     if (labels.includes(allowedPullRequestLabel)) {
-                        core.info(`Allowed commit by Pull Request label ('${allowedPullRequestLabel}')`
-                            + `: ${message.split(/[\n\r]+/)[0]}: ${pullRequestAssociatedWithCommit.html_url}`);
+                        core.info(`Allowed commit by Pull Request label ('${allowedPullRequestLabel}'): ${message}: ${pullRequestAssociatedWithCommit.html_url}`);
                         addChangelogItem(pullRequestAssociatedWithCommit.title, ((_a = pullRequestAssociatedWithCommit.user) === null || _a === void 0 ? void 0 : _a.login) || undefined, pullRequestAssociatedWithCommit.number);
                         continue forEachCommit;
                     }
@@ -937,8 +938,7 @@ async function run() {
                     if (!messageAfterPrefix.length
                         || messageAfterPrefix.match(/^\W/)
                         || allowedCommitPrefix.match(/\W$/)) {
-                        core.info(`Allowed commit by commit message prefix ('${allowedCommitPrefix}')`
-                            + `: ${message.split(/[\n\r]+/)[0]}: ${commit.html_url}`);
+                        core.info(`Allowed commit by commit message prefix ('${allowedCommitPrefix}'): ${message}: ${commit.html_url}`);
                         addChangelogItem(messageAfterPrefix);
                         continue forEachCommit;
                     }
