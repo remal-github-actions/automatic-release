@@ -842,6 +842,16 @@ const octokit = (0, octokit_1.newOctokitInstance)(githubToken);
 async function run() {
     var _a;
     try {
+        await core.group("Parameters", async () => {
+            core.info(`versionTagPrefix: ${versionTagPrefix}`);
+            core.info(`allowedVersionTagPrefixes:\n  ${allowedVersionTagPrefixes.join('\n  ')}`);
+            core.info(`expectedFilesToChange:\n  ${expectedFilesToChange.join('\n  ')}`);
+            core.info(`allowedCommitPrefixes:\n  ${allowedCommitPrefixes.join('\n  ')}`);
+            core.info(`allowedPullRequestLabels:\n  ${allowedPullRequestLabels.join('\n  ')}`);
+            core.info(`skippedChangelogCommitPrefixes:\n  ${skippedChangelogCommitPrefixes.join('\n  ')}`);
+            core.info(`versionIncrementMode: ${versionIncrementMode}`);
+            core.info(`dryRun: ${dryRun}`);
+        });
         const repo = await (0, retrieveRepo_1.retrieveRepo)(octokit);
         const lastVersionTag = await (0, retrieveVersionTags_1.retrieveLastVersionTag)(octokit, allowedVersionTagPrefixes);
         if (lastVersionTag == null) {
