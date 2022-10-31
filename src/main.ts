@@ -47,6 +47,17 @@ const octokit = newOctokitInstance(githubToken)
 
 async function run(): Promise<void> {
     try {
+        await core.group("Parameters", async () => {
+            core.info(`versionTagPrefix: ${versionTagPrefix}`)
+            core.info(`allowedVersionTagPrefixes:\n  ${allowedVersionTagPrefixes.join('\n  ')}`)
+            core.info(`expectedFilesToChange:\n  ${expectedFilesToChange.join('\n  ')}`)
+            core.info(`allowedCommitPrefixes:\n  ${allowedCommitPrefixes.join('\n  ')}`)
+            core.info(`allowedPullRequestLabels:\n  ${allowedPullRequestLabels.join('\n  ')}`)
+            core.info(`skippedChangelogCommitPrefixes:\n  ${skippedChangelogCommitPrefixes.join('\n  ')}`)
+            core.info(`versionIncrementMode: ${versionIncrementMode}`)
+            core.info(`dryRun: ${dryRun}`)
+        })
+
         const repo = await retrieveRepo(octokit)
 
         const lastVersionTag = await retrieveLastVersionTag(octokit, allowedVersionTagPrefixes)
