@@ -828,6 +828,9 @@ const allowedCommitPrefixes = core.getInput('allowedCommitPrefixes', { required:
 const allowedPullRequestLabels = core.getInput('allowedPullRequestLabels', { required: false })
     .split(/[\s,;]+/)
     .filter(it => it.length);
+const skippedChangelogCommitPrefixes = core.getInput('skippedChangelogCommitPrefixes', { required: false })
+    .split(/[\s,;]+/)
+    .filter(it => it.length);
 const versionIncrementMode = core.getInput('versionIncrementMode', { required: true }).toLowerCase();
 const dryRun = core.getInput('dryRun', { required: true }).toLowerCase() === 'true';
 const octokit = (0, octokit_1.newOctokitInstance)(githubToken);
@@ -867,20 +870,36 @@ async function run() {
                 return;
             }
         }
-        const commitPullRequests = [];
-        forEachCommit: for (const commit of commitComparisonCommits) {
-            const message = commit.commit.message;
-            core.debug(`Testing if commit is allowed: ${message}: ${commit.html_url}`);
-            for (const allowedCommitPrefix of allowedCommitPrefixes) {
-                if (message.startsWith(allowedCommitPrefix)) {
-                    const messageAfterPrefix = message.substring(allowedCommitPrefix.length);
-                    if (!messageAfterPrefix.length || messageAfterPrefix.match(/^\W/)) {
-                        core.info(`Allowed commit by commit message prefix ('${allowedCommitPrefix}')`
-                            + `: ${message.split(/[\n\r]+/)[0]}: ${commit.html_url}`);
-                        continue forEachCommit;
+        const changeLogItems = [];
+        function addChangelogItem(message, author = undefined, pullRequestNumber = undefined) {
+            for (const skippedChangelogCommitPrefix of skippedChangelogCommitPrefixes) {
+                if (message.startsWith(skippedChangelogCommitPrefix)) {
+                    return;
+                }
+            }
+            if (author == null)
+                author = undefined;
+            if (pullRequestNumber == null)
+                pullRequestNumber = undefined;
+            const alreadyCreatedChangeLogItem = changeLogItems.find(item => item.message === message && item.author === author);
+            if (alreadyCreatedChangeLogItem != null) {
+                if (pullRequestNumber != null) {
+                    if (!alreadyCreatedChangeLogItem.pullRequestNumbers.includes(pullRequestNumber)) {
+                        alreadyCreatedChangeLogItem.pullRequestNumbers.push(pullRequestNumber);
                     }
                 }
             }
+            else {
+                changeLogItems.push({
+                    message,
+                    author: author != null ? author : undefined,
+                    pullRequestNumbers: pullRequestNumber != null ? [pullRequestNumber] : [],
+                });
+            }
+        }
+        forEachCommit: for (const commit of commitComparisonCommits) {
+            const message = commit.commit.message;
+            core.debug(`Testing if commit is allowed: ${message}: ${commit.html_url}`);
             const pullRequestsAssociatedWithCommit = await (0, retrievePullRequestsAssociatedWithCommit_1.retrievePullRequestsAssociatedWithCommit)(octokit, commit);
             for (const pullRequestAssociatedWithCommit of pullRequestsAssociatedWithCommit) {
                 const labels = pullRequestAssociatedWithCommit.labels.map(it => it.name);
@@ -888,12 +907,18 @@ async function run() {
                     if (labels.includes(allowedPullRequestLabel)) {
                         core.info(`Allowed commit by Pull Request label ('${allowedPullRequestLabel}')`
                             + `: ${message.split(/[\n\r]+/)[0]}: ${pullRequestAssociatedWithCommit.html_url}`);
-                        if (!commitPullRequests.map(it => it.commit.sha).includes(commit.sha)) {
-                            commitPullRequests.push({
-                                commit,
-                                pullRequest: pullRequestAssociatedWithCommit,
-                            });
-                        }
+                        addChangelogItem(pullRequestAssociatedWithCommit.title, ((_a = pullRequestAssociatedWithCommit.user) === null || _a === void 0 ? void 0 : _a.login) || undefined, pullRequestAssociatedWithCommit.number);
+                        continue forEachCommit;
+                    }
+                }
+            }
+            for (const allowedCommitPrefix of allowedCommitPrefixes) {
+                if (message.startsWith(allowedCommitPrefix)) {
+                    const messageAfterPrefix = message.substring(allowedCommitPrefix.length);
+                    if (!messageAfterPrefix.length || messageAfterPrefix.match(/^\W/)) {
+                        core.info(`Allowed commit by commit message prefix ('${allowedCommitPrefix}')`
+                            + `: ${message.split(/[\n\r]+/)[0]}: ${commit.html_url}`);
+                        addChangelogItem(messageAfterPrefix);
                         continue forEachCommit;
                     }
                 }
@@ -903,27 +928,6 @@ async function run() {
         }
         const releaseVersion = (0, incrementVersion_1.incrementVersion)(lastVersionTag.version, versionIncrementMode);
         const releaseTag = `${versionTagPrefix}${releaseVersion}`;
-        const changeLogItems = [];
-        if (commitPullRequests.length) {
-            for (const commitPullRequest of commitPullRequests) {
-                const message = commitPullRequest.pullRequest.title;
-                const author = ((_a = commitPullRequest.pullRequest.user) === null || _a === void 0 ? void 0 : _a.login) || undefined;
-                const pullRequestNumber = commitPullRequest.pullRequest.number;
-                const alreadyCreatedChangeLogItem = changeLogItems.find(item => item.message === message && item.author === author);
-                if (alreadyCreatedChangeLogItem != null) {
-                    if (!alreadyCreatedChangeLogItem.pullRequestNumbers.includes(pullRequestNumber)) {
-                        alreadyCreatedChangeLogItem.pullRequestNumbers.push(pullRequestNumber);
-                    }
-                }
-                else {
-                    changeLogItems.push({
-                        message,
-                        author,
-                        pullRequestNumbers: [pullRequestNumber],
-                    });
-                }
-            }
-        }
         let releaseDescription = '_Automatic release_';
         if (changeLogItems.length) {
             releaseDescription += '\n# What\'s Changed\n';
@@ -940,10 +944,10 @@ async function run() {
                 ].filter(it => it.length).join(' ');
             }
         }
-        core.info(`Creating a new release '${releaseVersion}' with Git tag: '${releaseTag}', and with `
-            + (releaseDescription.length
-                ? `description:\n  ${releaseDescription.split('\n').join('\n  ')}`
-                : `empty description`));
+        const description = releaseDescription.length
+            ? `description:\n  ${releaseDescription.split('\n').join('\n  ')}`
+            : `empty description`;
+        core.info(`Creating a new release '${releaseVersion}' with Git tag: '${releaseTag}', and with ${description}`);
         if (dryRun) {
             core.warning(`Skipping release creation, as dry run is enabled`);
             return;
