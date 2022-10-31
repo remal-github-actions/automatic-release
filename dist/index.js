@@ -886,16 +886,16 @@ async function run() {
             }
         }
         const changeLogItems = [];
-        function addChangelogItem(message, author = undefined, pullRequestNumber = undefined) {
+        function addChangelogItem(message, originalMessage, author = undefined, pullRequestNumber = undefined) {
             message = message.trim();
             if (!message.length)
                 return;
             for (const skippedChangelogCommitPrefix of skippedChangelogCommitPrefixes) {
-                const messageAfterPrefix = message.substring(skippedChangelogCommitPrefix.length);
+                const messageAfterPrefix = originalMessage.substring(skippedChangelogCommitPrefix.length);
                 if (!messageAfterPrefix.length
                     || messageAfterPrefix.match(/^\W/)
                     || skippedChangelogCommitPrefix.match(/\W$/)) {
-                    core.info(`Skipping message from changelog by prefix '${skippedChangelogCommitPrefix}': ${message}`);
+                    core.info(`Skipping message from changelog by prefix '${skippedChangelogCommitPrefix}': ${originalMessage}`);
                     return;
                 }
             }
@@ -930,7 +930,7 @@ async function run() {
                 for (const allowedPullRequestLabel of allowedPullRequestLabels) {
                     if (labels.includes(allowedPullRequestLabel)) {
                         core.info(`Allowed commit by Pull Request label ('${allowedPullRequestLabel}'): ${message}: ${pullRequestAssociatedWithCommit.html_url}`);
-                        addChangelogItem(pullRequestAssociatedWithCommit.title, ((_a = pullRequestAssociatedWithCommit.user) === null || _a === void 0 ? void 0 : _a.login) || undefined, pullRequestAssociatedWithCommit.number);
+                        addChangelogItem(pullRequestAssociatedWithCommit.title, pullRequestAssociatedWithCommit.title, ((_a = pullRequestAssociatedWithCommit.user) === null || _a === void 0 ? void 0 : _a.login) || undefined, pullRequestAssociatedWithCommit.number);
                         continue forEachCommit;
                     }
                 }
@@ -942,7 +942,7 @@ async function run() {
                         || messageAfterPrefix.match(/^\W/)
                         || allowedCommitPrefix.match(/\W$/)) {
                         core.info(`Allowed commit by commit message prefix ('${allowedCommitPrefix}'): ${message}: ${commit.html_url}`);
-                        addChangelogItem(messageAfterPrefix);
+                        addChangelogItem(messageAfterPrefix, message);
                         continue forEachCommit;
                     }
                 }
