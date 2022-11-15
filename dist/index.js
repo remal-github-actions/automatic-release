@@ -9,11 +9,6 @@
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getTokensOrder = exports.compareSuffixTokens = exports.compareNumbers = exports.parseSuffixTokens = exports.parseSuffixString = exports.parseNumbers = exports.parseNumbersString = exports.matchVersion = exports.isVersionString = exports.VERSION_REGEX = exports.compareVersionsDesc = exports.compareVersions = exports.Version = void 0;
 class Version {
-    constructor(version) {
-        this._numbers = parseNumbers(version);
-        this._suffix = parseSuffixString(version);
-        this._suffixTokens = parseSuffixTokens(version);
-    }
     static parse(value) {
         if (value == null) {
             return undefined;
@@ -23,6 +18,11 @@ class Version {
             return undefined;
         }
         return new Version(text);
+    }
+    constructor(version) {
+        this._numbers = parseNumbers(version);
+        this._suffix = parseSuffixString(version);
+        this._suffixTokens = parseSuffixTokens(version);
     }
     toString() {
         return this._numbers.join('.') + this._suffix;
