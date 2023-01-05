@@ -84,7 +84,6 @@ jobs:
 
     # $$$sync-with-template-modifiable: validation $$$
 
-
     - name: Run current action
       uses: ./
       with:
@@ -99,7 +98,6 @@ jobs:
         allowedPullRequestLabels: |
           dependencies
           sync-with-template
-
 
     # $$$sync-with-template-modifiable-end$$$
 
