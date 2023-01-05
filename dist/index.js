@@ -816,24 +816,24 @@ const retrieveVersionTags_1 = __nccwpck_require__(9948);
 const githubToken = core.getInput('githubToken', { required: true });
 const versionTagPrefix = core.getInput('versionTagPrefix', { required: false });
 const allowedVersionTagPrefixes = core.getInput('allowedVersionTagPrefixes', { required: false })
-    .split(/[\s,;]+/)
+    .split(/[\n\r,;]+/)
     .map(it => it.trim())
     .filter(it => it.length);
 allowedVersionTagPrefixes.push(versionTagPrefix);
 const expectedFilesToChange = core.getInput('expectedFilesToChange', { required: false })
-    .split(/[\s,;]+/)
+    .split(/[\n\r,;]+/)
     .map(it => it.trim())
     .filter(it => it.length);
 const allowedCommitPrefixes = core.getInput('allowedCommitPrefixes', { required: false })
-    .split(/[\s,;]+/)
+    .split(/[\n\r,;]+/)
     .map(it => it.trim())
     .filter(it => it.length);
 const allowedPullRequestLabels = core.getInput('allowedPullRequestLabels', { required: false })
-    .split(/[\s,;]+/)
+    .split(/[\n\r,;]+/)
     .map(it => it.trim())
     .filter(it => it.length);
 const skippedChangelogCommitPrefixes = core.getInput('skippedChangelogCommitPrefixes', { required: false })
-    .split(/[\s,;]+/)
+    .split(/[\n\r,;]+/)
     .map(it => it.trim())
     .filter(it => it.length);
 const versionIncrementMode = core.getInput('versionIncrementMode', { required: true }).toLowerCase();
