@@ -740,10 +740,10 @@
     "@octokit/types" "^9.0.0"
     bottleneck "^2.15.3"
 
-"@octokit/plugin-throttling@5.0.0":
-  version "5.0.0"
-  resolved "https://registry.yarnpkg.com/@octokit/plugin-throttling/-/plugin-throttling-5.0.0.tgz#f5f736dc84e5bd79d0f5ddca07cafe3b66690567"
-  integrity sha512-VcfQMdB0mLgjQlqzk8StsY9xCQh+yfRtaOfCxAHui3iaCGCvQp+ibTzczJZ6FJqqrI+w0aukEDlFT8XdDK8PlQ==
+"@octokit/plugin-throttling@5.0.1":
+  version "5.0.1"
+  resolved "https://registry.yarnpkg.com/@octokit/plugin-throttling/-/plugin-throttling-5.0.1.tgz#e3ba0a49830a777097b6d49615782a0a5e51e743"
+  integrity sha512-I4qxs7wYvYlFuY3PAUGWAVPhFXG3RwnvTiSr5Fu/Auz7bYhDLnzS2MjwV8nGLq/FPrWwYiweeZrI5yjs1YG4tQ==
   dependencies:
     "@octokit/types" "^9.0.0"
     bottleneck "^2.15.3"
