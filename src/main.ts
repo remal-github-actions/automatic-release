@@ -1,45 +1,46 @@
 import * as core from '@actions/core'
 import picomatch from 'picomatch'
-import {createRelease} from './internal/createRelease'
-import {incrementVersion} from './internal/incrementVersion'
-import {newOctokitInstance} from './internal/octokit'
-import {retrieveCommitComparison} from './internal/retrieveCommitComparison'
-import {retrieveDefaultBranch} from './internal/retrieveDefaultBranch'
-import {retrievePullRequestsAssociatedWithCommit} from './internal/retrievePullRequestsAssociatedWithCommit'
-import {retrieveRepo} from './internal/retrieveRepo'
-import {retrieveLastVersionTag} from './internal/retrieveVersionTags'
-import {ChangeLogItem, VersionIncrementMode} from './internal/types'
+import { createRelease } from './internal/createRelease'
+import { incrementVersion } from './internal/incrementVersion'
+import { newOctokitInstance } from './internal/octokit'
+import { retrieveCheckRuns } from './internal/retrieveCheckRuns'
+import { retrieveCommitComparison } from './internal/retrieveCommitComparison'
+import { retrieveDefaultBranch } from './internal/retrieveDefaultBranch'
+import { retrievePullRequestsAssociatedWithCommit } from './internal/retrievePullRequestsAssociatedWithCommit'
+import { retrieveRepo } from './internal/retrieveRepo'
+import { retrieveLastVersionTag } from './internal/retrieveVersionTags'
+import { ChangeLogItem, VersionIncrementMode } from './internal/types'
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-const githubToken = core.getInput('githubToken', {required: true})
-const versionTagPrefix = core.getInput('versionTagPrefix', {required: false})
-const allowedVersionTagPrefixes = core.getInput('allowedVersionTagPrefixes', {required: false})
+const githubToken = core.getInput('githubToken', { required: true })
+const versionTagPrefix = core.getInput('versionTagPrefix', { required: false })
+const allowedVersionTagPrefixes = core.getInput('allowedVersionTagPrefixes', { required: false })
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
     .filter(it => it.length)
 allowedVersionTagPrefixes.push(versionTagPrefix)
-const expectedFilesToChange = core.getInput('expectedFilesToChange', {required: false})
+const expectedFilesToChange = core.getInput('expectedFilesToChange', { required: false })
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
     .filter(it => it.length)
-const allowedCommitPrefixes = core.getInput('allowedCommitPrefixes', {required: false})
+const allowedCommitPrefixes = core.getInput('allowedCommitPrefixes', { required: false })
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
     .filter(it => it.length)
-const allowedPullRequestLabels = core.getInput('allowedPullRequestLabels', {required: false})
+const allowedPullRequestLabels = core.getInput('allowedPullRequestLabels', { required: false })
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
     .filter(it => it.length)
-const skippedChangelogCommitPrefixes = core.getInput('skippedChangelogCommitPrefixes', {required: false})
+const skippedChangelogCommitPrefixes = core.getInput('skippedChangelogCommitPrefixes', { required: false })
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
     .filter(it => it.length)
 const versionIncrementMode = core.getInput(
     'versionIncrementMode',
-    {required: true}
+    { required: true }
 ).toLowerCase() as VersionIncrementMode
-const dryRun = core.getInput('dryRun', {required: true}).toLowerCase() === 'true'
+const dryRun = core.getInput('dryRun', { required: true }).toLowerCase() === 'true'
 
 const octokit = newOctokitInstance(githubToken)
 
@@ -47,7 +48,7 @@ const octokit = newOctokitInstance(githubToken)
 
 async function run(): Promise<void> {
     try {
-        await core.group("Parameters", async () => {
+        await core.group('Parameters', async () => {
             core.info(`versionTagPrefix: ${versionTagPrefix}`)
             core.info(`allowedVersionTagPrefixes:\n  ${allowedVersionTagPrefixes.join('\n  ')}`)
             core.info(`expectedFilesToChange:\n  ${expectedFilesToChange.join('\n  ')}`)
@@ -95,6 +96,13 @@ async function run(): Promise<void> {
                 core.info(`No expected files were changed:\n  ${expectedFilesToChange.join('\n  ')}`)
                 return
             }
+        }
+
+
+        const checkRuns = await retrieveCheckRuns(octokit, defaultBranch.commit.sha)
+        const failureCheckRuns = checkRuns.filter(it => it.conclusion === 'failure')
+        if (failureCheckRuns.length) {
+            throw new Error(`${failureCheckRuns.length} check run(s) failed for '${defaultBranch.name}' branch`)
         }
 
 

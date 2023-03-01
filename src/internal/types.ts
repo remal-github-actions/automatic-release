@@ -1,7 +1,9 @@
-import {components} from '@octokit/openapi-types'
-import {Version} from './Version'
+import { components } from '@octokit/openapi-types'
+import { Version } from './Version'
 
 export type Repo = components['schemas']['full-repository']
+export type CommitSha = string
+export type CheckRun = components['schemas']['check-run']
 export type CommitComparison = components['schemas']['commit-comparison']
 export type Tag = components['schemas']['tag']
 export type Commit = components['schemas']['commit']
