@@ -459,6 +459,27 @@ exports.newOctokitInstance = newOctokitInstance;
 
 /***/ }),
 
+/***/ 3388:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.retrieveCheckRuns = void 0;
+const github_1 = __nccwpck_require__(5438);
+async function retrieveCheckRuns(octokit, commitSha) {
+    return octokit.paginate(octokit.checks.listForRef, {
+        owner: github_1.context.repo.owner,
+        repo: github_1.context.repo.repo,
+        ref: commitSha,
+        filter: 'latest',
+    });
+}
+exports.retrieveCheckRuns = retrieveCheckRuns;
+
+
+/***/ }),
+
 /***/ 3423:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -808,6 +829,7 @@ const picomatch_1 = __importDefault(__nccwpck_require__(8569));
 const createRelease_1 = __nccwpck_require__(1942);
 const incrementVersion_1 = __nccwpck_require__(7294);
 const octokit_1 = __nccwpck_require__(8093);
+const retrieveCheckRuns_1 = __nccwpck_require__(3388);
 const retrieveCommitComparison_1 = __nccwpck_require__(3423);
 const retrieveDefaultBranch_1 = __nccwpck_require__(6394);
 const retrievePullRequestsAssociatedWithCommit_1 = __nccwpck_require__(7686);
@@ -842,7 +864,7 @@ const octokit = (0, octokit_1.newOctokitInstance)(githubToken);
 async function run() {
     var _a;
     try {
-        await core.group("Parameters", async () => {
+        await core.group('Parameters', async () => {
             core.info(`versionTagPrefix: ${versionTagPrefix}`);
             core.info(`allowedVersionTagPrefixes:\n  ${allowedVersionTagPrefixes.join('\n  ')}`);
             core.info(`expectedFilesToChange:\n  ${expectedFilesToChange.join('\n  ')}`);
@@ -884,6 +906,11 @@ async function run() {
                 core.info(`No expected files were changed:\n  ${expectedFilesToChange.join('\n  ')}`);
                 return;
             }
+        }
+        const checkRuns = await (0, retrieveCheckRuns_1.retrieveCheckRuns)(octokit, defaultBranch.commit.sha);
+        const failureCheckRuns = checkRuns.filter(it => it.conclusion === 'failure');
+        if (failureCheckRuns.length) {
+            throw new Error(`${failureCheckRuns.length} check run(s) failed for '${defaultBranch.name}' branch`);
         }
         const changeLogItems = [];
         function addChangelogItem(message, originalMessage, author = undefined, pullRequestNumber = undefined) {
