@@ -862,7 +862,7 @@ const versionIncrementMode = core.getInput('versionIncrementMode', { required: t
 const dryRun = core.getInput('dryRun', { required: true }).toLowerCase() === 'true';
 const octokit = (0, octokit_1.newOctokitInstance)(githubToken);
 async function run() {
-    var _a;
+    var _a, _b, _c;
     try {
         await core.group('Parameters', async () => {
             core.info(`versionTagPrefix: ${versionTagPrefix}`);
@@ -910,7 +910,14 @@ async function run() {
         const checkRuns = await (0, retrieveCheckRuns_1.retrieveCheckRuns)(octokit, defaultBranch.commit.sha);
         const failureCheckRuns = checkRuns.filter(it => it.conclusion === 'failure');
         if (failureCheckRuns.length) {
-            throw new Error(`${failureCheckRuns.length} check run(s) failed for '${defaultBranch.name}' branch`);
+            let message = `${failureCheckRuns.length} check run(s) failed for '${defaultBranch.name}' branch:`;
+            for (const failureCheckRun of failureCheckRuns) {
+                message += `\n  ${failureCheckRun.html_url}`;
+                if (((_a = failureCheckRun.output) === null || _a === void 0 ? void 0 : _a.title) != null) {
+                    message += ` (${(_b = failureCheckRun.output) === null || _b === void 0 ? void 0 : _b.title})`;
+                }
+            }
+            throw new Error(message);
         }
         const changeLogItems = [];
         function addChangelogItem(message, originalMessage, author = undefined, pullRequestNumber = undefined) {
@@ -959,7 +966,7 @@ async function run() {
                 for (const allowedPullRequestLabel of allowedPullRequestLabels) {
                     if (labels.includes(allowedPullRequestLabel)) {
                         core.info(`Allowed commit by Pull Request label ('${allowedPullRequestLabel}'): ${message}: ${pullRequestAssociatedWithCommit.html_url}`);
-                        addChangelogItem(pullRequestAssociatedWithCommit.title, pullRequestAssociatedWithCommit.title, ((_a = pullRequestAssociatedWithCommit.user) === null || _a === void 0 ? void 0 : _a.login) || undefined, pullRequestAssociatedWithCommit.number);
+                        addChangelogItem(pullRequestAssociatedWithCommit.title, pullRequestAssociatedWithCommit.title, ((_c = pullRequestAssociatedWithCommit.user) === null || _c === void 0 ? void 0 : _c.login) || undefined, pullRequestAssociatedWithCommit.number);
                         continue forEachCommit;
                     }
                 }
