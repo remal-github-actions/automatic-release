@@ -102,7 +102,14 @@ async function run(): Promise<void> {
         const checkRuns = await retrieveCheckRuns(octokit, defaultBranch.commit.sha)
         const failureCheckRuns = checkRuns.filter(it => it.conclusion === 'failure')
         if (failureCheckRuns.length) {
-            throw new Error(`${failureCheckRuns.length} check run(s) failed for '${defaultBranch.name}' branch`)
+            let message = `${failureCheckRuns.length} check run(s) failed for '${defaultBranch.name}' branch:`
+            for (const failureCheckRun of failureCheckRuns) {
+                message += `\n  ${failureCheckRun.html_url}`
+                if (failureCheckRun.output?.title != null) {
+                    message += ` (${failureCheckRun.output?.title})`
+                }
+            }
+            throw new Error(message)
         }
 
 
