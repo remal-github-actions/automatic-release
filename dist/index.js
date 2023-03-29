@@ -908,7 +908,12 @@ async function run() {
             }
         }
         const checkRuns = await (0, retrieveCheckRuns_1.retrieveCheckRuns)(octokit, defaultBranch.commit.sha);
-        const failureCheckRuns = checkRuns.filter(it => it.conclusion === 'failure');
+        const failureCheckRuns = checkRuns.filter(it => ![
+            'success',
+            'neutral',
+            'cancelled',
+            'skipped',
+        ].includes(it.conclusion || ''));
         if (failureCheckRuns.length) {
             let message = `${failureCheckRuns.length} check run(s) failed for '${defaultBranch.name}' branch:`;
             for (const failureCheckRun of failureCheckRuns) {
@@ -920,7 +925,7 @@ async function run() {
             throw new Error(message);
         }
         const changeLogItems = [];
-        function addChangelogItem(message, originalMessage, author = undefined, pullRequestNumber = undefined) {
+        function addChangelogItem(commit, message, originalMessage, author = undefined, pullRequestNumber = undefined) {
             message = message.trim();
             if (!message.length)
                 return;
@@ -946,12 +951,16 @@ async function run() {
                         alreadyCreatedChangeLogItem.pullRequestNumbers.push(pullRequestNumber);
                     }
                 }
+                if (!alreadyCreatedChangeLogItem.commits.includes(commit.sha)) {
+                    alreadyCreatedChangeLogItem.commits.push(commit.sha);
+                }
             }
             else {
                 changeLogItems.push({
                     message,
                     author: author != null ? author : undefined,
                     pullRequestNumbers: pullRequestNumber != null ? [pullRequestNumber] : [],
+                    commits: [commit.sha],
                 });
             }
         }
@@ -966,7 +975,7 @@ async function run() {
                 for (const allowedPullRequestLabel of allowedPullRequestLabels) {
                     if (labels.includes(allowedPullRequestLabel)) {
                         core.info(`Allowed commit by Pull Request label ('${allowedPullRequestLabel}'): ${message}: ${pullRequestAssociatedWithCommit.html_url}`);
-                        addChangelogItem(pullRequestAssociatedWithCommit.title, pullRequestAssociatedWithCommit.title, ((_c = pullRequestAssociatedWithCommit.user) === null || _c === void 0 ? void 0 : _c.login) || undefined, pullRequestAssociatedWithCommit.number);
+                        addChangelogItem(commit, pullRequestAssociatedWithCommit.title, pullRequestAssociatedWithCommit.title, ((_c = pullRequestAssociatedWithCommit.user) === null || _c === void 0 ? void 0 : _c.login) || undefined, pullRequestAssociatedWithCommit.number);
                         continue forEachCommit;
                     }
                 }
@@ -978,7 +987,7 @@ async function run() {
                         || messageAfterPrefix.match(/^\W/)
                         || allowedCommitPrefix.match(/\W$/)) {
                         core.info(`Allowed commit by commit message prefix ('${allowedCommitPrefix}'): ${message}: ${commit.html_url}`);
-                        addChangelogItem(messageAfterPrefix, message);
+                        addChangelogItem(commit, messageAfterPrefix, message);
                         continue forEachCommit;
                     }
                 }
@@ -992,16 +1001,20 @@ async function run() {
         if (changeLogItems.length) {
             releaseDescription += '\n\n# What\'s Changed\n';
             for (const changeLogItem of changeLogItems) {
-                releaseDescription += [
+                const tokens = [
                     '\n*',
                     changeLogItem.message,
-                    changeLogItem.pullRequestNumbers.length
-                        ? `(#${changeLogItem.pullRequestNumbers.join(', #')})`
-                        : '',
-                    changeLogItem.author != null
-                        ? `@${changeLogItem.author.replace(/\[bot\]$/, '')}`
-                        : ''
-                ].filter(it => it.length).join(' ');
+                ];
+                if (changeLogItem.pullRequestNumbers.length) {
+                    tokens.push(`(#${changeLogItem.pullRequestNumbers.join(', #')})`);
+                }
+                else {
+                    tokens.push(`(${changeLogItem.commits.join(', ')})`);
+                }
+                if (changeLogItem.author != null) {
+                    tokens.push(`@${changeLogItem.author.replace(/\[bot\]$/, '')}`);
+                }
+                releaseDescription += tokens.join(' ');
             }
         }
         const description = releaseDescription.length
