@@ -9,7 +9,7 @@ import { retrieveDefaultBranch } from './internal/retrieveDefaultBranch'
 import { retrievePullRequestsAssociatedWithCommit } from './internal/retrievePullRequestsAssociatedWithCommit'
 import { retrieveRepo } from './internal/retrieveRepo'
 import { retrieveLastVersionTag } from './internal/retrieveVersionTags'
-import { ChangeLogItem, VersionIncrementMode } from './internal/types'
+import { ChangeLogItem, Commit, VersionIncrementMode } from './internal/types'
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -100,7 +100,12 @@ async function run(): Promise<void> {
 
 
         const checkRuns = await retrieveCheckRuns(octokit, defaultBranch.commit.sha)
-        const failureCheckRuns = checkRuns.filter(it => it.conclusion === 'failure')
+        const failureCheckRuns = checkRuns.filter(it => ![
+            'success',
+            'neutral',
+            'cancelled',
+            'skipped',
+        ].includes(it.conclusion || ''))
         if (failureCheckRuns.length) {
             let message = `${failureCheckRuns.length} check run(s) failed for '${defaultBranch.name}' branch:`
             for (const failureCheckRun of failureCheckRuns) {
@@ -116,6 +121,7 @@ async function run(): Promise<void> {
         const changeLogItems: ChangeLogItem[] = []
 
         function addChangelogItem(
+            commit: Commit,
             message: string,
             originalMessage: string,
             author: string | null | undefined = undefined,
@@ -149,11 +155,15 @@ async function run(): Promise<void> {
                         alreadyCreatedChangeLogItem.pullRequestNumbers.push(pullRequestNumber)
                     }
                 }
+                if (!alreadyCreatedChangeLogItem.commits.includes(commit.sha)) {
+                    alreadyCreatedChangeLogItem.commits.push(commit.sha)
+                }
             } else {
                 changeLogItems.push({
                     message,
                     author: author != null ? author : undefined,
                     pullRequestNumbers: pullRequestNumber != null ? [pullRequestNumber] : [],
+                    commits: [commit.sha],
                 })
             }
         }
@@ -171,6 +181,7 @@ async function run(): Promise<void> {
                     if (labels.includes(allowedPullRequestLabel)) {
                         core.info(`Allowed commit by Pull Request label ('${allowedPullRequestLabel}'): ${message}: ${pullRequestAssociatedWithCommit.html_url}`)
                         addChangelogItem(
+                            commit,
                             pullRequestAssociatedWithCommit.title,
                             pullRequestAssociatedWithCommit.title,
                             pullRequestAssociatedWithCommit.user?.login || undefined,
@@ -190,6 +201,7 @@ async function run(): Promise<void> {
                     ) {
                         core.info(`Allowed commit by commit message prefix ('${allowedCommitPrefix}'): ${message}: ${commit.html_url}`)
                         addChangelogItem(
+                            commit,
                             messageAfterPrefix,
                             message
                         )
@@ -211,16 +223,22 @@ async function run(): Promise<void> {
         if (changeLogItems.length) {
             releaseDescription += '\n\n# What\'s Changed\n'
             for (const changeLogItem of changeLogItems) {
-                releaseDescription += [
+                const tokens = [
                     '\n*',
                     changeLogItem.message,
-                    changeLogItem.pullRequestNumbers.length
-                        ? `(#${changeLogItem.pullRequestNumbers.join(', #')})`
-                        : '',
-                    changeLogItem.author != null
-                        ? `@${changeLogItem.author.replace(/\[bot\]$/, '')}`
-                        : ''
-                ].filter(it => it.length).join(' ')
+                ]
+
+                if (changeLogItem.pullRequestNumbers.length) {
+                    tokens.push(`(#${changeLogItem.pullRequestNumbers.join(', #')})`)
+                } else {
+                    tokens.push(`(${changeLogItem.commits.join(', ')})`)
+                }
+
+                if (changeLogItem.author != null) {
+                    tokens.push(`@${changeLogItem.author.replace(/\[bot\]$/, '')}`)
+                }
+
+                releaseDescription += tokens.join(' ')
             }
         }
 

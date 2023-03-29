@@ -33,4 +33,5 @@ export interface ChangeLogItem {
     message: string
     author?: string
     pullRequestNumbers: number[]
+    commits: CommitSha[]
 }
