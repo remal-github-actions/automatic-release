@@ -29,9 +29,12 @@ export interface CommitPullRequest {
     pullRequest: PullRequestSimple
 }
 
+export type ChangeLogItemType = 'dependency'
+
 export interface ChangeLogItem {
     message: string
     author?: string
     pullRequestNumbers: number[]
     commits: CommitSha[]
+    type?: ChangeLogItemType
 }

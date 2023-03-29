@@ -9,7 +9,8 @@ import { retrieveDefaultBranch } from './internal/retrieveDefaultBranch'
 import { retrievePullRequestsAssociatedWithCommit } from './internal/retrievePullRequestsAssociatedWithCommit'
 import { retrieveRepo } from './internal/retrieveRepo'
 import { retrieveLastVersionTag } from './internal/retrieveVersionTags'
-import { ChangeLogItem, Commit, VersionIncrementMode } from './internal/types'
+import { ChangeLogItem, ChangeLogItemType, Commit, VersionIncrementMode } from './internal/types'
+import { hasNotEmptyIntersection } from './internal/utils'
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -33,6 +34,14 @@ const allowedPullRequestLabels = core.getInput('allowedPullRequestLabels', { req
     .map(it => it.trim())
     .filter(it => it.length)
 const skippedChangelogCommitPrefixes = core.getInput('skippedChangelogCommitPrefixes', { required: false })
+    .split(/[\n\r,;]+/)
+    .map(it => it.trim())
+    .filter(it => it.length)
+const dependencyUpdatesPullRequestLabels = core.getInput('dependencyUpdatesPullRequestLabels', { required: false })
+    .split(/[\n\r,;]+/)
+    .map(it => it.trim())
+    .filter(it => it.length)
+const dependencyUpdatesAuthors = core.getInput('dependencyUpdatesAuthors', { required: false })
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
     .filter(it => it.length)
@@ -122,6 +131,7 @@ async function run(): Promise<void> {
 
         function addChangelogItem(
             commit: Commit,
+            type: ChangeLogItemType | undefined,
             message: string,
             originalMessage: string,
             author: string | null | undefined = undefined,
@@ -158,12 +168,16 @@ async function run(): Promise<void> {
                 if (!alreadyCreatedChangeLogItem.commits.includes(commit.sha)) {
                     alreadyCreatedChangeLogItem.commits.push(commit.sha)
                 }
+                if (alreadyCreatedChangeLogItem.type == null) {
+                    alreadyCreatedChangeLogItem.type = type
+                }
             } else {
                 changeLogItems.push({
                     message,
                     author: author != null ? author : undefined,
                     pullRequestNumbers: pullRequestNumber != null ? [pullRequestNumber] : [],
                     commits: [commit.sha],
+                    type
                 })
             }
         }
@@ -180,8 +194,16 @@ async function run(): Promise<void> {
                 for (const allowedPullRequestLabel of allowedPullRequestLabels) {
                     if (labels.includes(allowedPullRequestLabel)) {
                         core.info(`Allowed commit by Pull Request label ('${allowedPullRequestLabel}'): ${message}: ${pullRequestAssociatedWithCommit.html_url}`)
+                        let type: ChangeLogItemType | undefined = undefined
+                        if (hasNotEmptyIntersection(labels, dependencyUpdatesPullRequestLabels)) {
+                            type = 'dependency'
+                        }
+                        if (dependencyUpdatesAuthors.includes(pullRequestAssociatedWithCommit.user?.login || '')) {
+                            type = 'dependency'
+                        }
                         addChangelogItem(
                             commit,
+                            type,
                             pullRequestAssociatedWithCommit.title,
                             pullRequestAssociatedWithCommit.title,
                             pullRequestAssociatedWithCommit.user?.login || undefined,
@@ -200,8 +222,13 @@ async function run(): Promise<void> {
                         || allowedCommitPrefix.match(/\W$/)
                     ) {
                         core.info(`Allowed commit by commit message prefix ('${allowedCommitPrefix}'): ${message}: ${commit.html_url}`)
+                        let type: ChangeLogItemType | undefined = undefined
+                        if (dependencyUpdatesAuthors.includes(commit.author?.name || '')) {
+                            type = 'dependency'
+                        }
                         addChangelogItem(
                             commit,
+                            type,
                             messageAfterPrefix,
                             message
                         )
@@ -219,12 +246,11 @@ async function run(): Promise<void> {
 
         const releaseTag = `${versionTagPrefix}${releaseVersion}`
 
-        let releaseDescription = '_Automatic release_'
+        const releaseDescriptionLines: string[] = ['_Automatic release_']
         if (changeLogItems.length) {
-            releaseDescription += '\n\n# What\'s Changed\n'
-            for (const changeLogItem of changeLogItems) {
+            function appendChangeLogItemToReleaseDescriptionLines(changeLogItem: ChangeLogItem) {
                 const tokens = [
-                    '\n*',
+                    '*',
                     changeLogItem.message,
                 ]
 
@@ -238,11 +264,37 @@ async function run(): Promise<void> {
                     tokens.push(`@${changeLogItem.author.replace(/\[bot\]$/, '')}`)
                 }
 
-                releaseDescription += tokens.join(' ')
+                releaseDescriptionLines.push(tokens.join(' '))
             }
+
+            const typeTitles: Record<ChangeLogItemType, string> = {
+                'dependency': '📦 Dependency updates',
+            }
+
+            releaseDescriptionLines.push('')
+            releaseDescriptionLines.push('# What\'s Changed')
+            releaseDescriptionLines.push('')
+
+            changeLogItems
+                .filter(it => it.type == null || !(it.type in typeTitles))
+                .forEach(appendChangeLogItemToReleaseDescriptionLines)
+
+            Object.entries(typeTitles).forEach(([type, title]) => {
+                const currentChangeLogItems = changeLogItems
+                    .filter(it => it.type === type)
+                if (currentChangeLogItems.length) {
+                    releaseDescriptionLines.push('')
+                    releaseDescriptionLines.push(`## ${title}`)
+                    releaseDescriptionLines.push('')
+
+                    currentChangeLogItems.forEach(appendChangeLogItemToReleaseDescriptionLines)
+                }
+            })
+
         }
 
 
+        const releaseDescription = releaseDescriptionLines.join('\n')
         const description = releaseDescription.length
             ? `description:\n  ${releaseDescription.split('\n').join('\n  ')}`
             : `empty description`
