@@ -792,6 +792,32 @@ exports.versionIncrementModes = [
 
 /***/ }),
 
+/***/ 2089:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.hasNotEmptyIntersection = void 0;
+function hasNotEmptyIntersection(array1, array2) {
+    if (array1 == null || !array1.length) {
+        return false;
+    }
+    if (array2 == null || !array2.length) {
+        return false;
+    }
+    for (const element1 of array1) {
+        if (!array2.includes(element1)) {
+            return false;
+        }
+    }
+    return true;
+}
+exports.hasNotEmptyIntersection = hasNotEmptyIntersection;
+
+
+/***/ }),
+
 /***/ 9538:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -835,6 +861,7 @@ const retrieveDefaultBranch_1 = __nccwpck_require__(6394);
 const retrievePullRequestsAssociatedWithCommit_1 = __nccwpck_require__(7686);
 const retrieveRepo_1 = __nccwpck_require__(4270);
 const retrieveVersionTags_1 = __nccwpck_require__(9948);
+const utils_1 = __nccwpck_require__(2089);
 const githubToken = core.getInput('githubToken', { required: true });
 const versionTagPrefix = core.getInput('versionTagPrefix', { required: false });
 const allowedVersionTagPrefixes = core.getInput('allowedVersionTagPrefixes', { required: false })
@@ -858,11 +885,19 @@ const skippedChangelogCommitPrefixes = core.getInput('skippedChangelogCommitPref
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
     .filter(it => it.length);
+const dependencyUpdatesPullRequestLabels = core.getInput('dependencyUpdatesPullRequestLabels', { required: false })
+    .split(/[\n\r,;]+/)
+    .map(it => it.trim())
+    .filter(it => it.length);
+const dependencyUpdatesAuthors = core.getInput('dependencyUpdatesAuthors', { required: false })
+    .split(/[\n\r,;]+/)
+    .map(it => it.trim())
+    .filter(it => it.length);
 const versionIncrementMode = core.getInput('versionIncrementMode', { required: true }).toLowerCase();
 const dryRun = core.getInput('dryRun', { required: true }).toLowerCase() === 'true';
 const octokit = (0, octokit_1.newOctokitInstance)(githubToken);
 async function run() {
-    var _a, _b, _c;
+    var _a, _b, _c, _d, _e;
     try {
         await core.group('Parameters', async () => {
             core.info(`versionTagPrefix: ${versionTagPrefix}`);
@@ -925,7 +960,7 @@ async function run() {
             throw new Error(message);
         }
         const changeLogItems = [];
-        function addChangelogItem(commit, message, originalMessage, author = undefined, pullRequestNumber = undefined) {
+        function addChangelogItem(commit, type, message, originalMessage, author = undefined, pullRequestNumber = undefined) {
             message = message.trim();
             if (!message.length)
                 return;
@@ -954,6 +989,9 @@ async function run() {
                 if (!alreadyCreatedChangeLogItem.commits.includes(commit.sha)) {
                     alreadyCreatedChangeLogItem.commits.push(commit.sha);
                 }
+                if (alreadyCreatedChangeLogItem.type == null) {
+                    alreadyCreatedChangeLogItem.type = type;
+                }
             }
             else {
                 changeLogItems.push({
@@ -961,6 +999,7 @@ async function run() {
                     author: author != null ? author : undefined,
                     pullRequestNumbers: pullRequestNumber != null ? [pullRequestNumber] : [],
                     commits: [commit.sha],
+                    type
                 });
             }
         }
@@ -975,7 +1014,14 @@ async function run() {
                 for (const allowedPullRequestLabel of allowedPullRequestLabels) {
                     if (labels.includes(allowedPullRequestLabel)) {
                         core.info(`Allowed commit by Pull Request label ('${allowedPullRequestLabel}'): ${message}: ${pullRequestAssociatedWithCommit.html_url}`);
-                        addChangelogItem(commit, pullRequestAssociatedWithCommit.title, pullRequestAssociatedWithCommit.title, ((_c = pullRequestAssociatedWithCommit.user) === null || _c === void 0 ? void 0 : _c.login) || undefined, pullRequestAssociatedWithCommit.number);
+                        let type = undefined;
+                        if ((0, utils_1.hasNotEmptyIntersection)(labels, dependencyUpdatesPullRequestLabels)) {
+                            type = 'dependency';
+                        }
+                        if (dependencyUpdatesAuthors.includes(((_c = pullRequestAssociatedWithCommit.user) === null || _c === void 0 ? void 0 : _c.login) || '')) {
+                            type = 'dependency';
+                        }
+                        addChangelogItem(commit, type, pullRequestAssociatedWithCommit.title, pullRequestAssociatedWithCommit.title, ((_d = pullRequestAssociatedWithCommit.user) === null || _d === void 0 ? void 0 : _d.login) || undefined, pullRequestAssociatedWithCommit.number);
                         continue forEachCommit;
                     }
                 }
@@ -987,7 +1033,11 @@ async function run() {
                         || messageAfterPrefix.match(/^\W/)
                         || allowedCommitPrefix.match(/\W$/)) {
                         core.info(`Allowed commit by commit message prefix ('${allowedCommitPrefix}'): ${message}: ${commit.html_url}`);
-                        addChangelogItem(commit, messageAfterPrefix, message);
+                        let type = undefined;
+                        if (dependencyUpdatesAuthors.includes(((_e = commit.author) === null || _e === void 0 ? void 0 : _e.name) || '')) {
+                            type = 'dependency';
+                        }
+                        addChangelogItem(commit, type, messageAfterPrefix, message);
                         continue forEachCommit;
                     }
                 }
@@ -997,12 +1047,11 @@ async function run() {
         }
         const releaseVersion = (0, incrementVersion_1.incrementVersion)(lastVersionTag.version, versionIncrementMode);
         const releaseTag = `${versionTagPrefix}${releaseVersion}`;
-        let releaseDescription = '_Automatic release_';
+        const releaseDescriptionLines = ['_Automatic release_'];
         if (changeLogItems.length) {
-            releaseDescription += '\n\n# What\'s Changed\n';
-            for (const changeLogItem of changeLogItems) {
+            function appendChangeLogItemToReleaseDescriptionLines(changeLogItem) {
                 const tokens = [
-                    '\n*',
+                    '*',
                     changeLogItem.message,
                 ];
                 if (changeLogItem.pullRequestNumbers.length) {
@@ -1014,9 +1063,29 @@ async function run() {
                 if (changeLogItem.author != null) {
                     tokens.push(`@${changeLogItem.author.replace(/\[bot\]$/, '')}`);
                 }
-                releaseDescription += tokens.join(' ');
+                releaseDescriptionLines.push(tokens.join(' '));
             }
+            const typeTitles = {
+                'dependency': '📦 Dependency updates',
+            };
+            releaseDescriptionLines.push('');
+            releaseDescriptionLines.push('# What\'s Changed');
+            releaseDescriptionLines.push('');
+            changeLogItems
+                .filter(it => it.type == null || !(it.type in typeTitles))
+                .forEach(appendChangeLogItemToReleaseDescriptionLines);
+            Object.entries(typeTitles).forEach(([type, title]) => {
+                const currentChangeLogItems = changeLogItems
+                    .filter(it => it.type === type);
+                if (currentChangeLogItems.length) {
+                    releaseDescriptionLines.push('');
+                    releaseDescriptionLines.push(`## ${title}`);
+                    releaseDescriptionLines.push('');
+                    currentChangeLogItems.forEach(appendChangeLogItemToReleaseDescriptionLines);
+                }
+            });
         }
+        const releaseDescription = releaseDescriptionLines.join('\n');
         const description = releaseDescription.length
             ? `description:\n  ${releaseDescription.split('\n').join('\n  ')}`
             : `empty description`;
