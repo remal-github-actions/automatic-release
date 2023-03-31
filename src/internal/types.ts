@@ -4,6 +4,7 @@ import { Version } from './Version'
 export type Repo = components['schemas']['full-repository']
 export type CommitSha = string
 export type CheckRun = components['schemas']['check-run']
+export type CheckSuite = components['schemas']['check-suite']
 export type CommitComparison = components['schemas']['commit-comparison']
 export type Tag = components['schemas']['tag']
 export type Commit = components['schemas']['commit']

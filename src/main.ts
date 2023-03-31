@@ -109,32 +109,38 @@ async function run(): Promise<void> {
         }
 
 
-        const currentCheckRun = await octokit.checks.get({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            check_run_id: context.runId,
-        })
-        const doThrow = true
-        if (doThrow) {
-            throw new Error(JSON.stringify(currentCheckRun, null, 2))
-        }
-
         const checkRuns = await retrieveCheckRuns(octokit, defaultBranch.commit.sha)
         const failureCheckRuns = checkRuns.filter(it => ![
             'success',
             'neutral',
             'cancelled',
             'skipped',
+            'action_required',
         ].includes(it.conclusion || ''))
         if (failureCheckRuns.length) {
-            let message = `${failureCheckRuns.length} check run(s) failed for '${defaultBranch.name}' branch:`
-            for (const failureCheckRun of failureCheckRuns) {
-                message += `\n  ${failureCheckRun.html_url}`
-                if (failureCheckRun.output?.title != null) {
-                    message += ` (${failureCheckRun.output?.title})`
-                }
+            const currentWorkflowRun = await octokit.actions.getWorkflowRun({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: context.runId,
+            }).then(it => it.data)
+            const currentCheckSuiteId = currentWorkflowRun.check_suite_id
+
+            let failureCheckRunsExceptCurrent = failureCheckRuns
+            if (currentCheckSuiteId != null) {
+                failureCheckRunsExceptCurrent = failureCheckRunsExceptCurrent
+                    .filter(checkRun => checkRun.check_suite?.id !== currentCheckSuiteId)
             }
-            throw new Error(message)
+
+            if (failureCheckRunsExceptCurrent.length) {
+                let message = `${failureCheckRunsExceptCurrent.length} check run(s) failed for '${defaultBranch.name}' branch:`
+                for (const failureCheckRun of failureCheckRunsExceptCurrent) {
+                    message += `\n  ${failureCheckRun.html_url}`
+                    if (failureCheckRun.output?.title != null) {
+                        message += ` (${failureCheckRun.output?.title})`
+                    }
+                }
+                throw new Error(message)
+            }
         }
 
 
