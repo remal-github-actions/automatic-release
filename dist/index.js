@@ -851,6 +851,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(2186));
+const github_1 = __nccwpck_require__(5438);
 const picomatch_1 = __importDefault(__nccwpck_require__(8569));
 const createRelease_1 = __nccwpck_require__(1942);
 const incrementVersion_1 = __nccwpck_require__(7294);
@@ -948,16 +949,30 @@ async function run() {
             'neutral',
             'cancelled',
             'skipped',
+            'action_required',
         ].includes(it.conclusion || ''));
         if (failureCheckRuns.length) {
-            let message = `${failureCheckRuns.length} check run(s) failed for '${defaultBranch.name}' branch:`;
-            for (const failureCheckRun of failureCheckRuns) {
-                message += `\n  ${failureCheckRun.html_url}`;
-                if (((_a = failureCheckRun.output) === null || _a === void 0 ? void 0 : _a.title) != null) {
-                    message += ` (${(_b = failureCheckRun.output) === null || _b === void 0 ? void 0 : _b.title})`;
-                }
+            const currentWorkflowRun = await octokit.actions.getWorkflowRun({
+                owner: github_1.context.repo.owner,
+                repo: github_1.context.repo.repo,
+                run_id: github_1.context.runId,
+            }).then(it => it.data);
+            const currentCheckSuiteId = currentWorkflowRun.check_suite_id;
+            let failureCheckRunsExceptCurrent = failureCheckRuns;
+            if (currentCheckSuiteId != null) {
+                failureCheckRunsExceptCurrent = failureCheckRunsExceptCurrent
+                    .filter(checkRun => { var _a; return ((_a = checkRun.check_suite) === null || _a === void 0 ? void 0 : _a.id) !== currentCheckSuiteId; });
             }
-            throw new Error(message);
+            if (failureCheckRunsExceptCurrent.length) {
+                let message = `${failureCheckRunsExceptCurrent.length} check run(s) failed for '${defaultBranch.name}' branch:`;
+                for (const failureCheckRun of failureCheckRunsExceptCurrent) {
+                    message += `\n  ${failureCheckRun.html_url}`;
+                    if (((_a = failureCheckRun.output) === null || _a === void 0 ? void 0 : _a.title) != null) {
+                        message += ` (${(_b = failureCheckRun.output) === null || _b === void 0 ? void 0 : _b.title})`;
+                    }
+                }
+                throw new Error(message);
+            }
         }
         const changeLogItems = [];
         function addChangelogItem(commit, type, message, originalMessage, author = undefined, pullRequestNumber = undefined) {
