@@ -247,7 +247,8 @@ async function run(): Promise<void> {
                             commit,
                             type,
                             messageAfterPrefix,
-                            message
+                            message,
+                            commit.author?.name
                         )
                         continue forEachCommit
                     }
