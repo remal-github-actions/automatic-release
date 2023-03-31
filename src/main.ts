@@ -114,7 +114,7 @@ async function run(): Promise<void> {
             repo: context.repo.repo,
             check_run_id: context.runId,
         })
-        throw new Error(JSON.stringify(currentCheckRun, null, 2)))
+        throw new Error(JSON.stringify(currentCheckRun, null, 2))
 
         const checkRuns = await retrieveCheckRuns(octokit, defaultBranch.commit.sha)
         const failureCheckRuns = checkRuns.filter(it => ![
