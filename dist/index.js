@@ -898,7 +898,7 @@ const versionIncrementMode = core.getInput('versionIncrementMode', { required: t
 const dryRun = core.getInput('dryRun', { required: true }).toLowerCase() === 'true';
 const octokit = (0, octokit_1.newOctokitInstance)(githubToken);
 async function run() {
-    var _a, _b, _c, _d, _e;
+    var _a, _b, _c, _d, _e, _f;
     try {
         await core.group('Parameters', async () => {
             core.info(`versionTagPrefix: ${versionTagPrefix}`);
@@ -1052,7 +1052,7 @@ async function run() {
                         if (dependencyUpdatesAuthors.includes(((_e = commit.author) === null || _e === void 0 ? void 0 : _e.name) || '')) {
                             type = 'dependency';
                         }
-                        addChangelogItem(commit, type, messageAfterPrefix, message);
+                        addChangelogItem(commit, type, messageAfterPrefix, message, (_f = commit.author) === null || _f === void 0 ? void 0 : _f.name);
                         continue forEachCommit;
                     }
                 }
