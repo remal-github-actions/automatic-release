@@ -109,12 +109,12 @@ async function run(): Promise<void> {
         }
 
 
-        const currentCheckRun = octokit.checks.get({
+        const currentCheckRun = await octokit.checks.get({
             owner: context.repo.owner,
             repo: context.repo.repo,
             check_run_id: context.runId,
         })
-        core.warning(JSON.stringify(currentCheckRun, null, 2))
+        throw new Error(JSON.stringify(currentCheckRun, null, 2)))
 
         const checkRuns = await retrieveCheckRuns(octokit, defaultBranch.commit.sha)
         const failureCheckRuns = checkRuns.filter(it => ![
