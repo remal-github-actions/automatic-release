@@ -898,7 +898,6 @@ const versionIncrementMode = core.getInput('versionIncrementMode', { required: t
 const dryRun = core.getInput('dryRun', { required: true }).toLowerCase() === 'true';
 const octokit = (0, octokit_1.newOctokitInstance)(githubToken);
 async function run() {
-    var _a, _b, _c, _d, _e, _f;
     try {
         await core.group('Parameters', async () => {
             core.info(`versionTagPrefix: ${versionTagPrefix}`);
@@ -961,14 +960,14 @@ async function run() {
             let failureCheckRunsExceptCurrent = failureCheckRuns;
             if (currentCheckSuiteId != null) {
                 failureCheckRunsExceptCurrent = failureCheckRunsExceptCurrent
-                    .filter(checkRun => { var _a; return ((_a = checkRun.check_suite) === null || _a === void 0 ? void 0 : _a.id) !== currentCheckSuiteId; });
+                    .filter(checkRun => checkRun.check_suite?.id !== currentCheckSuiteId);
             }
             if (failureCheckRunsExceptCurrent.length) {
                 let message = `${failureCheckRunsExceptCurrent.length} check run(s) failed for '${defaultBranch.name}' branch:`;
                 for (const failureCheckRun of failureCheckRunsExceptCurrent) {
                     message += `\n  ${failureCheckRun.html_url}`;
-                    if (((_a = failureCheckRun.output) === null || _a === void 0 ? void 0 : _a.title) != null) {
-                        message += ` (${(_b = failureCheckRun.output) === null || _b === void 0 ? void 0 : _b.title})`;
+                    if (failureCheckRun.output?.title != null) {
+                        message += ` (${failureCheckRun.output?.title})`;
                     }
                 }
                 throw new Error(message);
@@ -1033,10 +1032,10 @@ async function run() {
                         if ((0, utils_1.hasNotEmptyIntersection)(labels, dependencyUpdatesPullRequestLabels)) {
                             type = 'dependency';
                         }
-                        if (dependencyUpdatesAuthors.includes(((_c = pullRequestAssociatedWithCommit.user) === null || _c === void 0 ? void 0 : _c.login) || '')) {
+                        if (dependencyUpdatesAuthors.includes(pullRequestAssociatedWithCommit.user?.login || '')) {
                             type = 'dependency';
                         }
-                        addChangelogItem(commit, type, pullRequestAssociatedWithCommit.title, pullRequestAssociatedWithCommit.title, ((_d = pullRequestAssociatedWithCommit.user) === null || _d === void 0 ? void 0 : _d.login) || undefined, pullRequestAssociatedWithCommit.number);
+                        addChangelogItem(commit, type, pullRequestAssociatedWithCommit.title, pullRequestAssociatedWithCommit.title, pullRequestAssociatedWithCommit.user?.login || undefined, pullRequestAssociatedWithCommit.number);
                         continue forEachCommit;
                     }
                 }
@@ -1049,10 +1048,10 @@ async function run() {
                         || allowedCommitPrefix.match(/\W$/)) {
                         core.info(`Allowed commit by commit message prefix ('${allowedCommitPrefix}'): ${message}: ${commit.html_url}`);
                         let type = undefined;
-                        if (dependencyUpdatesAuthors.includes(((_e = commit.author) === null || _e === void 0 ? void 0 : _e.name) || '')) {
+                        if (dependencyUpdatesAuthors.includes(commit.author?.name || '')) {
                             type = 'dependency';
                         }
-                        addChangelogItem(commit, type, messageAfterPrefix, message, (_f = commit.author) === null || _f === void 0 ? void 0 : _f.name);
+                        addChangelogItem(commit, type, messageAfterPrefix, message, commit.author?.name);
                         continue forEachCommit;
                     }
                 }
