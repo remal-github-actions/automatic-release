@@ -864,6 +864,7 @@ const retrieveRepo_1 = __nccwpck_require__(4270);
 const retrieveVersionTags_1 = __nccwpck_require__(9948);
 const utils_1 = __nccwpck_require__(2089);
 const githubToken = core.getInput('githubToken', { required: true });
+const failOnNotAllowedCommits = core.getInput('failOnNotAllowedCommits', { required: true }).toLowerCase() === 'true';
 const versionTagPrefix = core.getInput('versionTagPrefix', { required: false });
 const allowedVersionTagPrefixes = core.getInput('allowedVersionTagPrefixes', { required: false })
     .split(/[\n\r,;]+/)
@@ -922,7 +923,7 @@ async function run() {
         }
         const defaultBranch = await (0, retrieveDefaultBranch_1.retrieveDefaultBranch)(octokit, repo);
         const commitComparison = await (0, retrieveCommitComparison_1.retrieveCommitComparison)(octokit, defaultBranch, lastVersionTag.tag);
-        const commitComparisonCommits = commitComparison.commits || [];
+        const commitComparisonCommits = commitComparison.commits ?? [];
         if (!commitComparisonCommits.length) {
             core.info(`No commits found after last version tag: ${commitComparison.html_url}`);
             return;
@@ -949,7 +950,7 @@ async function run() {
             'cancelled',
             'skipped',
             'action_required',
-        ].includes(it.conclusion || ''));
+        ].includes(it.conclusion ?? ''));
         if (failureCheckRuns.length) {
             const currentWorkflowRun = await octokit.actions.getWorkflowRun({
                 owner: github_1.context.repo.owner,
@@ -1013,7 +1014,7 @@ async function run() {
                     author: author != null ? author : undefined,
                     pullRequestNumbers: pullRequestNumber != null ? [pullRequestNumber] : [],
                     commits: [commit.sha],
-                    type
+                    type,
                 });
             }
         }
@@ -1029,13 +1030,11 @@ async function run() {
                     if (labels.includes(allowedPullRequestLabel)) {
                         core.info(`Allowed commit by Pull Request label ('${allowedPullRequestLabel}'): ${message}: ${pullRequestAssociatedWithCommit.html_url}`);
                         let type = undefined;
-                        if ((0, utils_1.hasNotEmptyIntersection)(labels, dependencyUpdatesPullRequestLabels)) {
+                        if ((0, utils_1.hasNotEmptyIntersection)(labels, dependencyUpdatesPullRequestLabels)
+                            || dependencyUpdatesAuthors.includes(pullRequestAssociatedWithCommit.user?.login ?? '')) {
                             type = 'dependency';
                         }
-                        if (dependencyUpdatesAuthors.includes(pullRequestAssociatedWithCommit.user?.login || '')) {
-                            type = 'dependency';
-                        }
-                        addChangelogItem(commit, type, pullRequestAssociatedWithCommit.title, pullRequestAssociatedWithCommit.title, pullRequestAssociatedWithCommit.user?.login || undefined, pullRequestAssociatedWithCommit.number);
+                        addChangelogItem(commit, type, pullRequestAssociatedWithCommit.title, pullRequestAssociatedWithCommit.title, pullRequestAssociatedWithCommit.user?.login ?? undefined, pullRequestAssociatedWithCommit.number);
                         continue forEachCommit;
                     }
                 }
@@ -1048,7 +1047,7 @@ async function run() {
                         || allowedCommitPrefix.match(/\W$/)) {
                         core.info(`Allowed commit by commit message prefix ('${allowedCommitPrefix}'): ${message}: ${commit.html_url}`);
                         let type = undefined;
-                        if (dependencyUpdatesAuthors.includes(commit.author?.name || '')) {
+                        if (dependencyUpdatesAuthors.includes(commit.author?.name ?? '')) {
                             type = 'dependency';
                         }
                         addChangelogItem(commit, type, messageAfterPrefix, message, commit.author?.name);
@@ -1056,8 +1055,14 @@ async function run() {
                     }
                 }
             }
-            core.info(`Not allowed commit: ${message}: ${commit.html_url}`);
-            return;
+            const failOnNotAllowedCommitMessage = `Not allowed commit: ${message}: ${commit.html_url}`;
+            if (failOnNotAllowedCommits) {
+                throw new Error(failOnNotAllowedCommitMessage);
+            }
+            else {
+                core.info(failOnNotAllowedCommitMessage);
+                return;
+            }
         }
         const releaseVersion = (0, incrementVersion_1.incrementVersion)(lastVersionTag.version, versionIncrementMode);
         const releaseTag = `${versionTagPrefix}${releaseVersion}`;
