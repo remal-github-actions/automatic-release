@@ -5,6 +5,10 @@ inputs:
   githubToken:
     required: true
     description: GitHub access token
+  failOnNotAllowedCommits:
+    required: true
+    default: 'true'
+    description: Fail on not allowed commits
   versionIncrementMode:
     required: true
     default: 'patch'

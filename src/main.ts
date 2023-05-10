@@ -16,6 +16,7 @@ import { hasNotEmptyIntersection } from './internal/utils'
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 const githubToken = core.getInput('githubToken', { required: true })
+const failOnNotAllowedCommits = core.getInput('failOnNotAllowedCommits', { required: true }).toLowerCase() === 'true'
 const versionTagPrefix = core.getInput('versionTagPrefix', { required: false })
 const allowedVersionTagPrefixes = core.getInput('allowedVersionTagPrefixes', { required: false })
     .split(/[\n\r,;]+/)
@@ -48,7 +49,7 @@ const dependencyUpdatesAuthors = core.getInput('dependencyUpdatesAuthors', { req
     .filter(it => it.length)
 const versionIncrementMode = core.getInput(
     'versionIncrementMode',
-    { required: true }
+    { required: true },
 ).toLowerCase() as VersionIncrementMode
 const dryRun = core.getInput('dryRun', { required: true }).toLowerCase() === 'true'
 
@@ -85,7 +86,7 @@ async function run(): Promise<void> {
 
         const defaultBranch = await retrieveDefaultBranch(octokit, repo)
         const commitComparison = await retrieveCommitComparison(octokit, defaultBranch, lastVersionTag.tag)
-        const commitComparisonCommits = commitComparison.commits || []
+        const commitComparisonCommits = commitComparison.commits ?? []
         if (!commitComparisonCommits.length) {
             core.info(`No commits found after last version tag: ${commitComparison.html_url}`)
             return
@@ -116,7 +117,7 @@ async function run(): Promise<void> {
             'cancelled',
             'skipped',
             'action_required',
-        ].includes(it.conclusion || ''))
+        ].includes(it.conclusion ?? ''))
         if (failureCheckRuns.length) {
             const currentWorkflowRun = await octokit.actions.getWorkflowRun({
                 owner: context.repo.owner,
@@ -152,7 +153,7 @@ async function run(): Promise<void> {
             message: string,
             originalMessage: string,
             author: string | null | undefined = undefined,
-            pullRequestNumber: number | null | undefined = undefined
+            pullRequestNumber: number | null | undefined = undefined,
         ) {
             message = message.trim()
             if (!message.length) return
@@ -174,7 +175,7 @@ async function run(): Promise<void> {
             if (pullRequestNumber == null) pullRequestNumber = undefined
 
             const alreadyCreatedChangeLogItem = changeLogItems.find(item =>
-                item.message === message && item.author === author
+                item.message === message && item.author === author,
             )
             if (alreadyCreatedChangeLogItem != null) {
                 if (pullRequestNumber != null) {
@@ -194,7 +195,7 @@ async function run(): Promise<void> {
                     author: author != null ? author : undefined,
                     pullRequestNumbers: pullRequestNumber != null ? [pullRequestNumber] : [],
                     commits: [commit.sha],
-                    type
+                    type,
                 })
             }
         }
@@ -212,10 +213,9 @@ async function run(): Promise<void> {
                     if (labels.includes(allowedPullRequestLabel)) {
                         core.info(`Allowed commit by Pull Request label ('${allowedPullRequestLabel}'): ${message}: ${pullRequestAssociatedWithCommit.html_url}`)
                         let type: ChangeLogItemType | undefined = undefined
-                        if (hasNotEmptyIntersection(labels, dependencyUpdatesPullRequestLabels)) {
-                            type = 'dependency'
-                        }
-                        if (dependencyUpdatesAuthors.includes(pullRequestAssociatedWithCommit.user?.login || '')) {
+                        if (hasNotEmptyIntersection(labels, dependencyUpdatesPullRequestLabels)
+                            || dependencyUpdatesAuthors.includes(pullRequestAssociatedWithCommit.user?.login ?? '')
+                        ) {
                             type = 'dependency'
                         }
                         addChangelogItem(
@@ -223,8 +223,8 @@ async function run(): Promise<void> {
                             type,
                             pullRequestAssociatedWithCommit.title,
                             pullRequestAssociatedWithCommit.title,
-                            pullRequestAssociatedWithCommit.user?.login || undefined,
-                            pullRequestAssociatedWithCommit.number
+                            pullRequestAssociatedWithCommit.user?.login ?? undefined,
+                            pullRequestAssociatedWithCommit.number,
                         )
                         continue forEachCommit
                     }
@@ -240,7 +240,7 @@ async function run(): Promise<void> {
                     ) {
                         core.info(`Allowed commit by commit message prefix ('${allowedCommitPrefix}'): ${message}: ${commit.html_url}`)
                         let type: ChangeLogItemType | undefined = undefined
-                        if (dependencyUpdatesAuthors.includes(commit.author?.name || '')) {
+                        if (dependencyUpdatesAuthors.includes(commit.author?.name ?? '')) {
                             type = 'dependency'
                         }
                         addChangelogItem(
@@ -248,15 +248,20 @@ async function run(): Promise<void> {
                             type,
                             messageAfterPrefix,
                             message,
-                            commit.author?.name
+                            commit.author?.name,
                         )
                         continue forEachCommit
                     }
                 }
             }
 
-            core.info(`Not allowed commit: ${message}: ${commit.html_url}`)
-            return
+            const failOnNotAllowedCommitMessage = `Not allowed commit: ${message}: ${commit.html_url}`
+            if (failOnNotAllowedCommits) {
+                throw new Error(failOnNotAllowedCommitMessage)
+            } else {
+                core.info(failOnNotAllowedCommitMessage)
+                return
+            }
         }
 
 
@@ -328,7 +333,7 @@ async function run(): Promise<void> {
             defaultBranch,
             releaseVersion,
             releaseTag,
-            releaseDescription
+            releaseDescription,
         )
         core.info(`Created release: ${createdRelease.html_url}`)
 
