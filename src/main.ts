@@ -139,6 +139,9 @@ async function run(): Promise<void> {
                     if (failureCheckRun.output?.title != null) {
                         message += ` (${failureCheckRun.output?.title})`
                     }
+                    if (failureCheckRun.conclusion != null) {
+                        message += ` (${failureCheckRun.conclusion})`
+                    }
                 }
                 throw new Error(message)
             }
