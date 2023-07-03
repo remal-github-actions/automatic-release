@@ -81,22 +81,6 @@ jobs:
 
 
     # $$$sync-with-template-modifiable: validation $$$
-
-    - name: Run current action
-      uses: ./
-      with:
-        dryRun: 'true'
-        githubToken: ${{github.token}}
-        versionIncrementMode: 'patch'
-        versionTagPrefix: 'v'
-        expectedFilesToChange: |
-          yarn.lock
-        allowedCommitPrefixes: |
-          [push-back]
-        allowedPullRequestLabels: |
-          dependencies
-          sync-with-template
-
     # $$$sync-with-template-modifiable-end$$$
 
 
