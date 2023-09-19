@@ -19,6 +19,9 @@ class Version {
         }
         return new Version(text);
     }
+    _numbers;
+    _suffix;
+    _suffixTokens;
     constructor(version) {
         this._numbers = parseNumbers(version);
         this._suffix = parseSuffixString(version);
