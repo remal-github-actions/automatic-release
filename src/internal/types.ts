@@ -1,4 +1,4 @@
-import { components } from '@octokit/openapi-types'
+import type { components } from '@octokit/openapi-types'
 import { Version } from './Version'
 
 export type Repo = components['schemas']['full-repository']
