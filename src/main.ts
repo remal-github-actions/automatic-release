@@ -133,7 +133,7 @@ async function run(): Promise<void> {
             }
 
             if (failureCheckRunsExceptCurrent.length) {
-                let message = `${failureCheckRunsExceptCurrent.length} check run(s) failed for '${defaultBranch.name}' branch:`
+                let message = `${failureCheckRunsExceptCurrent.length} check run(s) not succeed for '${defaultBranch.name}' branch:`
                 for (const failureCheckRun of failureCheckRunsExceptCurrent) {
                     message += `\n  ${failureCheckRun.html_url}`
                     if (failureCheckRun.output?.title != null) {
@@ -164,7 +164,7 @@ async function run(): Promise<void> {
             for (const skippedChangelogCommitPrefix of skippedChangelogCommitPrefixes) {
                 if (originalMessage.startsWith(skippedChangelogCommitPrefix)) {
                     const messageAfterPrefix = originalMessage.substring(skippedChangelogCommitPrefix.length)
-                    if (!messageAfterPrefix.length
+                    if (!messageAfterPrefix.trim().length
                         || messageAfterPrefix.match(/^\W/)
                         || skippedChangelogCommitPrefix.match(/\W$/)
                     ) {
@@ -237,7 +237,7 @@ async function run(): Promise<void> {
             for (const allowedCommitPrefix of allowedCommitPrefixes) {
                 if (message.startsWith(allowedCommitPrefix)) {
                     const messageAfterPrefix = message.substring(allowedCommitPrefix.length)
-                    if (!messageAfterPrefix.length
+                    if (!messageAfterPrefix.trim().length
                         || messageAfterPrefix.match(/^\W/)
                         || allowedCommitPrefix.match(/\W$/)
                     ) {
@@ -249,7 +249,9 @@ async function run(): Promise<void> {
                         addChangelogItem(
                             commit,
                             type,
-                            messageAfterPrefix,
+                            !!messageAfterPrefix.trim().length
+                                ? messageAfterPrefix.trim()
+                                : message,
                             message,
                             commit.author?.name,
                         )
