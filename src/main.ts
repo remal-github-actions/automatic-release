@@ -249,7 +249,7 @@ async function run(): Promise<void> {
                         addChangelogItem(
                             commit,
                             type,
-                            !!messageAfterPrefix.trim().length
+                            messageAfterPrefix.trim().length
                                 ? messageAfterPrefix.trim()
                                 : message,
                             message,

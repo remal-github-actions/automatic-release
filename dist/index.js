@@ -971,7 +971,7 @@ async function run() {
                     .filter(checkRun => checkRun.check_suite?.id !== currentCheckSuiteId);
             }
             if (failureCheckRunsExceptCurrent.length) {
-                let message = `${failureCheckRunsExceptCurrent.length} check run(s) failed for '${defaultBranch.name}' branch:`;
+                let message = `${failureCheckRunsExceptCurrent.length} check run(s) not succeed for '${defaultBranch.name}' branch:`;
                 for (const failureCheckRun of failureCheckRunsExceptCurrent) {
                     message += `\n  ${failureCheckRun.html_url}`;
                     if (failureCheckRun.output?.title != null) {
@@ -992,7 +992,7 @@ async function run() {
             for (const skippedChangelogCommitPrefix of skippedChangelogCommitPrefixes) {
                 if (originalMessage.startsWith(skippedChangelogCommitPrefix)) {
                     const messageAfterPrefix = originalMessage.substring(skippedChangelogCommitPrefix.length);
-                    if (!messageAfterPrefix.length
+                    if (!messageAfterPrefix.trim().length
                         || messageAfterPrefix.match(/^\W/)
                         || skippedChangelogCommitPrefix.match(/\W$/)) {
                         core.info(`Excluding changelog message by prefix '${skippedChangelogCommitPrefix}': ${originalMessage}`);
@@ -1052,7 +1052,7 @@ async function run() {
             for (const allowedCommitPrefix of allowedCommitPrefixes) {
                 if (message.startsWith(allowedCommitPrefix)) {
                     const messageAfterPrefix = message.substring(allowedCommitPrefix.length);
-                    if (!messageAfterPrefix.length
+                    if (!messageAfterPrefix.trim().length
                         || messageAfterPrefix.match(/^\W/)
                         || allowedCommitPrefix.match(/\W$/)) {
                         core.info(`Allowed commit by commit message prefix ('${allowedCommitPrefix}'): ${message}: ${commit.html_url}`);
@@ -1060,7 +1060,9 @@ async function run() {
                         if (dependencyUpdatesAuthors.includes(commit.author?.name ?? '')) {
                             type = 'dependency';
                         }
-                        addChangelogItem(commit, type, messageAfterPrefix, message, commit.author?.name);
+                        addChangelogItem(commit, type, messageAfterPrefix.trim().length
+                            ? messageAfterPrefix.trim()
+                            : message, message, commit.author?.name);
                         continue forEachCommit;
                     }
                 }
