@@ -1,1143 +1,6 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 8195:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getTokensOrder = exports.compareSuffixTokens = exports.compareNumbers = exports.parseSuffixTokens = exports.parseSuffixString = exports.parseNumbers = exports.parseNumbersString = exports.matchVersion = exports.isVersionString = exports.VERSION_REGEX = exports.compareVersionsDesc = exports.compareVersions = exports.Version = void 0;
-class Version {
-    static parse(value) {
-        if (value == null) {
-            return undefined;
-        }
-        const text = value.toString().trim();
-        if (text.length === 0) {
-            return undefined;
-        }
-        return new Version(text);
-    }
-    _numbers;
-    _suffix;
-    _suffixTokens;
-    constructor(version) {
-        this._numbers = parseNumbers(version);
-        this._suffix = parseSuffixString(version);
-        this._suffixTokens = parseSuffixTokens(version);
-    }
-    toString() {
-        return this._numbers.join('.') + this._suffix;
-    }
-    get numbers() {
-        return [...this._numbers];
-    }
-    number(pos) {
-        if (pos < 1) {
-            throw new Error(`pos must be greater or equal to 1: ${pos}`);
-        }
-        if (pos <= this._numbers.length) {
-            return this._numbers[pos - 1];
-        }
-        else {
-            return undefined;
-        }
-    }
-    get suffix() {
-        return this._suffix;
-    }
-    withNumbers(numbers) {
-        if (numbers.length === 0) {
-            throw new Error('numbers must not be empty');
-        }
-        return new Version(numbers.join('.') + this._suffix);
-    }
-    withSuffix(suffix) {
-        if (suffix.length === 0) {
-            return new Version(this._numbers.join('.'));
-        }
-        const ch = suffix.substring(0, 1);
-        if (('a' <= ch && ch <= 'z')
-            || ('A' <= ch && ch <= 'Z')
-            || ('0' <= ch && ch <= '9')) {
-            return new Version(`${this._numbers.join('.')}-${suffix}`);
-        }
-        else {
-            return new Version(this._numbers.join('.') + suffix);
-        }
-    }
-    withoutSuffix() {
-        if (this._suffix.length === 0) {
-            return this;
-        }
-        else {
-            return new Version(this._numbers.join('.'));
-        }
-    }
-    withNumber(pos, value) {
-        if (pos < 1) {
-            throw new Error(`pos must be greater or equal to 1: ${pos}`);
-        }
-        if (value < 0) {
-            throw new Error(`value must be greater or equal to 0: ${value}`);
-        }
-        const newNumbers = [...this._numbers];
-        for (let i = newNumbers.length; i < pos - 1; ++i) {
-            newNumbers[i] = 0;
-        }
-        newNumbers[pos - 1] = value;
-        return this.withNumbers(newNumbers);
-    }
-    withoutNumber(pos) {
-        if (pos < 2) {
-            throw new Error(`pos must be greater or equal to 2: ${pos}`);
-        }
-        if (pos > this._numbers.length) {
-            return this;
-        }
-        const newNumbers = [...this._numbers];
-        newNumbers.splice(pos - 1);
-        return this.withNumbers(newNumbers);
-    }
-    incrementNumber(pos, incrementer = 1) {
-        const number = this.number(pos) || 0;
-        return this.withNumber(pos, number + incrementer);
-    }
-    compareTo(other) {
-        let result = compareNumbers(this._numbers, other._numbers);
-        if (result === 0) {
-            result = compareSuffixTokens(this._suffixTokens, other._suffixTokens);
-        }
-        return result;
-    }
-    get hasSuffix() {
-        return this._suffixTokens.find(token => typeof token === 'string') !== undefined;
-    }
-    get isRelease() {
-        return !this.hasSuffix || getTokensOrder(this._suffixTokens) >= getTokensOrder(['release']);
-    }
-    get isSnapshot() {
-        return getTokensOrder(this._suffixTokens) === getTokensOrder(['snapshot']);
-    }
-    get isRc() {
-        return getTokensOrder(this._suffixTokens) === getTokensOrder(['rc']);
-    }
-    get isMilestone() {
-        return getTokensOrder(this._suffixTokens) === getTokensOrder(['milestone']);
-    }
-    get isBeta() {
-        return getTokensOrder(this._suffixTokens) === getTokensOrder(['beta']);
-    }
-    get isAlpha() {
-        return getTokensOrder(this._suffixTokens) === getTokensOrder(['alpha']);
-    }
-}
-exports.Version = Version;
-function compareVersions(version1, version2) {
-    return version1.compareTo(version2);
-}
-exports.compareVersions = compareVersions;
-function compareVersionsDesc(version1, version2) {
-    return -1 * compareVersions(version1, version2);
-}
-exports.compareVersionsDesc = compareVersionsDesc;
-exports.VERSION_REGEX = /^(?<numbers>\d+(\.\d+)*)(?<suffix>[-.+_a-z0-9]*)$/i;
-function isVersionString(version) {
-    try {
-        return matchVersion(version) != null;
-    }
-    catch (e) {
-        return false;
-    }
-}
-exports.isVersionString = isVersionString;
-function matchVersion(version) {
-    if (version.length === 0) {
-        throw new Error('Version must not be empty');
-    }
-    const match = version.match(exports.VERSION_REGEX);
-    if (match == null) {
-        throw new Error(`Version doesn't match to ${exports.VERSION_REGEX}: ${version}`);
-    }
-    return match;
-}
-exports.matchVersion = matchVersion;
-function parseNumbersString(version) {
-    const match = matchVersion(version);
-    return match.groups.numbers;
-}
-exports.parseNumbersString = parseNumbersString;
-function parseNumbers(version) {
-    const numbersString = parseNumbersString(version);
-    return numbersString.split('.')
-        .map(token => parseInt(token));
-}
-exports.parseNumbers = parseNumbers;
-function parseSuffixString(version) {
-    const match = matchVersion(version);
-    return match.groups.suffix || '';
-}
-exports.parseSuffixString = parseSuffixString;
-const SPLIT_LETTER_FROM_DIGIT = /([a-z])(\d)/g;
-const SPLIT_DIGIT_FROM_LETTER = /(\d)([a-z])/g;
-function parseSuffixTokens(version) {
-    const suffix = parseSuffixString(version)
-        .toLowerCase()
-        .replace(SPLIT_LETTER_FROM_DIGIT, '$1-$2')
-        .replace(SPLIT_DIGIT_FROM_LETTER, '$1-$2');
-    return suffix.split(/[-.+_]/)
-        .filter(token => token.length > 0)
-        .map(token => {
-        const number = parseInt(token);
-        if (!isNaN(number)) {
-            return number;
-        }
-        else {
-            return token;
-        }
-    });
-}
-exports.parseSuffixTokens = parseSuffixTokens;
-function compareNumbers(numbers1, numbers2) {
-    for (let i = 0; i < Math.min(numbers1.length, numbers2.length); ++i) {
-        const number1 = numbers1[i];
-        const number2 = numbers2[i];
-        const result = number1 - number2;
-        if (result !== 0) {
-            return result;
-        }
-    }
-    return numbers1.length - numbers2.length;
-}
-exports.compareNumbers = compareNumbers;
-function compareSuffixTokens(tokens1, tokens2) {
-    {
-        const order1 = getTokensOrder(tokens1);
-        const order2 = getTokensOrder(tokens2);
-        const result = order1 - order2;
-        if (result !== 0) {
-            return result;
-        }
-    }
-    for (let i = 0; i < Math.min(tokens1.length, tokens2.length); ++i) {
-        const token1 = tokens1[i];
-        const token2 = tokens2[i];
-        if (typeof token1 === 'number' && typeof token2 === 'number') {
-            const result = token1 - token2;
-            if (result !== 0) {
-                return result;
-            }
-        }
-        else if (typeof token1 === 'number') {
-            return 1;
-        }
-        else if (typeof token2 === 'number') {
-            return -1;
-        }
-        else {
-            if (token1 > token2) {
-                return 1;
-            }
-            else if (token1 < token2) {
-                return -1;
-            }
-        }
-    }
-    return tokens1.length - tokens2.length;
-}
-exports.compareSuffixTokens = compareSuffixTokens;
-const TOKENS_ORDER = {
-    'sp': 2,
-    'release': 1,
-    'r': 1,
-    'ga': 1,
-    'final': 1,
-    'snapshot': -1,
-    'nightly': -2,
-    'rc': -3,
-    'cr': -3,
-    'milestone': -4,
-    'm': -4,
-    'beta': -5,
-    'b': -5,
-    'alpha': -6,
-    'a': -6,
-    'dev': -7,
-    'pr': -7,
-};
-function getTokensOrder(tokens) {
-    for (const token of tokens) {
-        if (typeof token === 'string') {
-            const order = TOKENS_ORDER[token];
-            if (order != null) {
-                return order;
-            }
-        }
-    }
-    return 0;
-}
-exports.getTokensOrder = getTokensOrder;
-
-
-/***/ }),
-
-/***/ 1942:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.createRelease = void 0;
-const core = __importStar(__nccwpck_require__(2186));
-const github_1 = __nccwpck_require__(5438);
-async function createRelease(octokit, branch, releaseVersion, releaseTag, releaseDescription) {
-    core.debug(`Creating a new release.`
-        + ` Branch: '${branch.name}'.`
-        + ` Release version: '${releaseVersion}'.`
-        + ` Release tag: '${releaseTag}'.`
-        + ` Release description: '${releaseDescription}'.`);
-    return octokit.repos.createRelease({
-        owner: github_1.context.repo.owner,
-        repo: github_1.context.repo.repo,
-        target_commitish: branch.name,
-        tag_name: releaseTag,
-        name: releaseVersion.toString(),
-        body: releaseDescription,
-    }).then(it => it.data);
-}
-exports.createRelease = createRelease;
-
-
-/***/ }),
-
-/***/ 7294:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.incrementVersion = void 0;
-const types_1 = __nccwpck_require__(6178);
-const Version_1 = __nccwpck_require__(8195);
-function incrementVersion(version, versionIncrementMode) {
-    if (version.hasSuffix) {
-        throw new Error(`Version has suffix: ${version}`);
-    }
-    const numbers = [...version.numbers];
-    if (!numbers.length) {
-        throw new Error(`Version doesn't have numbers: ${version}`);
-    }
-    function incrementNumber(index) {
-        while (numbers.length <= index) {
-            numbers.push(0);
-        }
-        ++numbers[index];
-    }
-    if (versionIncrementMode === 'major') {
-        incrementNumber(0);
-    }
-    else if (versionIncrementMode === 'minor') {
-        incrementNumber(1);
-    }
-    else if (versionIncrementMode === 'patch') {
-        incrementNumber(2);
-    }
-    else {
-        throw new Error(`Unsupported versionIncrementMode: '${versionIncrementMode}'.`
-            + ` Only these values are supported: '${types_1.versionIncrementModes.join("', '")}'.`);
-    }
-    return new Version_1.Version(numbers.join('.'));
-}
-exports.incrementVersion = incrementVersion;
-
-
-/***/ }),
-
-/***/ 8093:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.newOctokitInstance = void 0;
-const core = __importStar(__nccwpck_require__(2186));
-const utils_1 = __nccwpck_require__(3030);
-const plugin_request_log_1 = __nccwpck_require__(8883);
-const plugin_retry_1 = __nccwpck_require__(6298);
-const plugin_throttling_1 = __nccwpck_require__(9968);
-const OctokitWithPlugins = utils_1.GitHub
-    .plugin(plugin_retry_1.retry)
-    .plugin(plugin_throttling_1.throttling)
-    .plugin(plugin_request_log_1.requestLog)
-    .defaults({
-    previews: [
-        'baptiste',
-        'mercy',
-    ],
-});
-function newOctokitInstance(token) {
-    const baseOptions = (0, utils_1.getOctokitOptions)(token);
-    const throttleOptions = {
-        throttle: {
-            onRateLimit: (retryAfter, options) => {
-                const retryCount = options.request.retryCount;
-                const retryLogInfo = retryCount === 0 ? '' : ` (retry #${retryCount})`;
-                core.debug(`Request quota exhausted for request ${options.method} ${options.url}${retryLogInfo}`);
-                return retryCount <= 4;
-            },
-            onSecondaryRateLimit: (retryAfter, options) => {
-                core.error(`Abuse detected for request ${options.method} ${options.url}`);
-                return false;
-            },
-        },
-    };
-    const retryOptions = {
-        retry: {
-            doNotRetry: ['429'],
-        },
-    };
-    const logOptions = {};
-    const traceLogging = __nccwpck_require__(385)({ level: 'trace' });
-    if (core.isDebug()) {
-        logOptions.log = traceLogging;
-    }
-    const allOptions = {
-        ...baseOptions,
-        ...throttleOptions,
-        ...retryOptions,
-        ...logOptions,
-    };
-    const octokit = new OctokitWithPlugins(allOptions);
-    const client = {
-        ...octokit.rest,
-        paginate: octokit.paginate,
-    };
-    return client;
-}
-exports.newOctokitInstance = newOctokitInstance;
-
-
-/***/ }),
-
-/***/ 3388:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.retrieveCheckRuns = void 0;
-const github_1 = __nccwpck_require__(5438);
-async function retrieveCheckRuns(octokit, commitSha) {
-    return octokit.paginate(octokit.checks.listForRef, {
-        owner: github_1.context.repo.owner,
-        repo: github_1.context.repo.repo,
-        ref: commitSha,
-        filter: 'latest',
-    });
-}
-exports.retrieveCheckRuns = retrieveCheckRuns;
-
-
-/***/ }),
-
-/***/ 3423:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.retrieveCommitComparison = void 0;
-const core = __importStar(__nccwpck_require__(2186));
-const github_1 = __nccwpck_require__(5438);
-async function retrieveCommitComparison(octokit, branch, tag) {
-    const perPage = 100;
-    core.debug(`Retrieving commit comparison.`
-        + ` Branch: '${branch.name}'.`
-        + ` Tag: '${tag.name}'.`
-        + ` Commits per page: '${perPage}'.`
-        + ` Page: '1'.`);
-    const commitComparison = await octokit.repos.compareCommitsWithBasehead({
-        owner: github_1.context.repo.owner,
-        repo: github_1.context.repo.repo,
-        basehead: `${tag.commit.sha}...${branch.commit.sha}`,
-        page: 1,
-        per_page: perPage,
-    }).then(it => it.data);
-    commitComparison.commits = commitComparison.commits || [];
-    let lastLoadedCommitsCount = commitComparison.commits.length;
-    core.debug(`  lastLoadedCommitsCount = ${lastLoadedCommitsCount}`);
-    for (let page = 2; lastLoadedCommitsCount >= perPage; ++page) {
-        core.debug(`Retrieving commit comparison.`
-            + ` Branch: '${branch.name}'.`
-            + ` Tag: '${tag.name}'.`
-            + ` Commits per page: '${perPage}'.`
-            + ` Page: '${page}'.`);
-        const pageCommitComparison = await octokit.repos.compareCommitsWithBasehead({
-            owner: github_1.context.repo.owner,
-            repo: github_1.context.repo.repo,
-            basehead: `${tag.commit.sha}...${branch.commit.sha}`,
-            page,
-            per_page: perPage,
-        }).then(it => it.data);
-        pageCommitComparison.commits = pageCommitComparison.commits || [];
-        pageCommitComparison.commits.forEach(commit => commitComparison.commits.push(commit));
-        lastLoadedCommitsCount = pageCommitComparison.commits.length;
-        core.debug(`  lastLoadedCommitsCount = ${lastLoadedCommitsCount}`);
-    }
-    return commitComparison;
-}
-exports.retrieveCommitComparison = retrieveCommitComparison;
-
-
-/***/ }),
-
-/***/ 6394:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.retrieveDefaultBranch = void 0;
-const core = __importStar(__nccwpck_require__(2186));
-const github_1 = __nccwpck_require__(5438);
-async function retrieveDefaultBranch(octokit, repo) {
-    core.debug(`Retrieving default branch`);
-    return octokit.repos.getBranch({
-        owner: github_1.context.repo.owner,
-        repo: github_1.context.repo.repo,
-        branch: repo.default_branch,
-    }).then(it => it.data);
-}
-exports.retrieveDefaultBranch = retrieveDefaultBranch;
-
-
-/***/ }),
-
-/***/ 7686:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.retrievePullRequestsAssociatedWithCommit = void 0;
-const core = __importStar(__nccwpck_require__(2186));
-const github_1 = __nccwpck_require__(5438);
-async function retrievePullRequestsAssociatedWithCommit(octokit, commit) {
-    core.debug(`Retrieving Pull Requests associated with commit.`
-        + ` Commit: '${commit.sha}'.`);
-    return octokit.paginate(octokit.repos.listPullRequestsAssociatedWithCommit, {
-        owner: github_1.context.repo.owner,
-        repo: github_1.context.repo.repo,
-        commit_sha: commit.sha,
-    });
-}
-exports.retrievePullRequestsAssociatedWithCommit = retrievePullRequestsAssociatedWithCommit;
-
-
-/***/ }),
-
-/***/ 4270:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.retrieveRepo = void 0;
-const core = __importStar(__nccwpck_require__(2186));
-const github_1 = __nccwpck_require__(5438);
-async function retrieveRepo(octokit) {
-    core.debug(`Retrieving repository info`);
-    return octokit.repos.get({
-        owner: github_1.context.repo.owner,
-        repo: github_1.context.repo.repo,
-    }).then(it => it.data);
-}
-exports.retrieveRepo = retrieveRepo;
-
-
-/***/ }),
-
-/***/ 9948:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.retrieveLastVersionTag = exports.retrieveVersionTags = void 0;
-const core = __importStar(__nccwpck_require__(2186));
-const github_1 = __nccwpck_require__(5438);
-const Version_1 = __nccwpck_require__(8195);
-async function retrieveVersionTags(octokit, versionTagPrefixes = []) {
-    core.debug(`Retrieving version tags.`
-        + ` Version tag prefixes: '${versionTagPrefixes.join("', '")}'.`);
-    const tags = await octokit.paginate(octokit.repos.listTags, {
-        owner: github_1.context.repo.owner,
-        repo: github_1.context.repo.repo,
-    });
-    const result = [];
-    const versionTagSortedPrefixes = [...versionTagPrefixes];
-    versionTagSortedPrefixes.push('');
-    versionTagSortedPrefixes.sort((o1, o2) => -1 * (o1.length - o2.length));
-    for (const tag of tags) {
-        let version = undefined;
-        forEachTagVersionPrefix: for (const versionTagSortedPrefix of versionTagSortedPrefixes) {
-            for (const prefix of [`${versionTagSortedPrefix}-`, versionTagSortedPrefix]) {
-                if (tag.name.startsWith(prefix)) {
-                    const potentialVersion = tag.name.substring(prefix.length);
-                    if ((0, Version_1.isVersionString)(potentialVersion)) {
-                        version = Version_1.Version.parse(potentialVersion);
-                        if (version != null) {
-                            break forEachTagVersionPrefix;
-                        }
-                    }
-                }
-            }
-        }
-        if (version == null) {
-            continue;
-        }
-        result.push({
-            version,
-            tag,
-        });
-    }
-    result.sort((o1, o2) => -1 * o1.version.compareTo(o2.version));
-    return result;
-}
-exports.retrieveVersionTags = retrieveVersionTags;
-async function retrieveLastVersionTag(octokit, tagVersionPrefixes = []) {
-    return retrieveVersionTags(octokit, tagVersionPrefixes)
-        .then(versionTags => {
-        if (versionTags.length) {
-            return versionTags[0];
-        }
-        else {
-            return undefined;
-        }
-    });
-}
-exports.retrieveLastVersionTag = retrieveLastVersionTag;
-
-
-/***/ }),
-
-/***/ 6178:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.versionIncrementModes = void 0;
-exports.versionIncrementModes = [
-    'major',
-    'minor',
-    'patch',
-];
-
-
-/***/ }),
-
-/***/ 2089:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.hasNotEmptyIntersection = void 0;
-function hasNotEmptyIntersection(array1, array2) {
-    if (array1 == null || !array1.length) {
-        return false;
-    }
-    if (array2 == null || !array2.length) {
-        return false;
-    }
-    for (const element1 of array1) {
-        if (!array2.includes(element1)) {
-            return false;
-        }
-    }
-    return true;
-}
-exports.hasNotEmptyIntersection = hasNotEmptyIntersection;
-
-
-/***/ }),
-
-/***/ 9538:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-const core = __importStar(__nccwpck_require__(2186));
-const github_1 = __nccwpck_require__(5438);
-const picomatch_1 = __importDefault(__nccwpck_require__(8569));
-const createRelease_1 = __nccwpck_require__(1942);
-const incrementVersion_1 = __nccwpck_require__(7294);
-const octokit_1 = __nccwpck_require__(8093);
-const retrieveCheckRuns_1 = __nccwpck_require__(3388);
-const retrieveCommitComparison_1 = __nccwpck_require__(3423);
-const retrieveDefaultBranch_1 = __nccwpck_require__(6394);
-const retrievePullRequestsAssociatedWithCommit_1 = __nccwpck_require__(7686);
-const retrieveRepo_1 = __nccwpck_require__(4270);
-const retrieveVersionTags_1 = __nccwpck_require__(9948);
-const utils_1 = __nccwpck_require__(2089);
-const githubToken = core.getInput('githubToken', { required: true });
-const failOnNotAllowedCommits = core.getInput('failOnNotAllowedCommits', { required: true }).toLowerCase() === 'true';
-const versionTagPrefix = core.getInput('versionTagPrefix', { required: false });
-const allowedVersionTagPrefixes = core.getInput('allowedVersionTagPrefixes', { required: false })
-    .split(/[\n\r,;]+/)
-    .map(it => it.trim())
-    .filter(it => it.length);
-allowedVersionTagPrefixes.push(versionTagPrefix);
-const expectedFilesToChange = core.getInput('expectedFilesToChange', { required: false })
-    .split(/[\n\r,;]+/)
-    .map(it => it.trim())
-    .filter(it => it.length);
-const allowedCommitPrefixes = core.getInput('allowedCommitPrefixes', { required: false })
-    .split(/[\n\r,;]+/)
-    .map(it => it.trim())
-    .filter(it => it.length);
-const allowedPullRequestLabels = core.getInput('allowedPullRequestLabels', { required: false })
-    .split(/[\n\r,;]+/)
-    .map(it => it.trim())
-    .filter(it => it.length);
-const skippedChangelogCommitPrefixes = core.getInput('skippedChangelogCommitPrefixes', { required: false })
-    .split(/[\n\r,;]+/)
-    .map(it => it.trim())
-    .filter(it => it.length);
-const dependencyUpdatesPullRequestLabels = core.getInput('dependencyUpdatesPullRequestLabels', { required: false })
-    .split(/[\n\r,;]+/)
-    .map(it => it.trim())
-    .filter(it => it.length);
-const dependencyUpdatesAuthors = core.getInput('dependencyUpdatesAuthors', { required: false })
-    .split(/[\n\r,;]+/)
-    .map(it => it.trim())
-    .filter(it => it.length);
-const versionIncrementMode = core.getInput('versionIncrementMode', { required: true }).toLowerCase();
-const dryRun = core.getInput('dryRun', { required: true }).toLowerCase() === 'true';
-const octokit = (0, octokit_1.newOctokitInstance)(githubToken);
-async function run() {
-    try {
-        await core.group('Parameters', async () => {
-            core.info(`versionTagPrefix: ${versionTagPrefix}`);
-            core.info(`allowedVersionTagPrefixes:\n  ${allowedVersionTagPrefixes.join('\n  ')}`);
-            core.info(`expectedFilesToChange:\n  ${expectedFilesToChange.join('\n  ')}`);
-            core.info(`allowedCommitPrefixes:\n  ${allowedCommitPrefixes.join('\n  ')}`);
-            core.info(`allowedPullRequestLabels:\n  ${allowedPullRequestLabels.join('\n  ')}`);
-            core.info(`skippedChangelogCommitPrefixes:\n  ${skippedChangelogCommitPrefixes.join('\n  ')}`);
-            core.info(`versionIncrementMode: ${versionIncrementMode}`);
-            core.info(`dryRun: ${dryRun}`);
-        });
-        const repo = await (0, retrieveRepo_1.retrieveRepo)(octokit);
-        const lastVersionTag = await (0, retrieveVersionTags_1.retrieveLastVersionTag)(octokit, allowedVersionTagPrefixes);
-        if (lastVersionTag == null) {
-            core.info(`Skipping release creation, as no version tags found for repository ${repo.html_url}`);
-            return;
-        }
-        core.info(`Last version: '${lastVersionTag.version}', tag: ${repo.html_url}/releases/tag/${lastVersionTag.tag.name}`);
-        if (lastVersionTag.version.hasSuffix) {
-            core.warning(`Skipping release creation, as last version has suffix: '${lastVersionTag.version}'`);
-            return;
-        }
-        const defaultBranch = await (0, retrieveDefaultBranch_1.retrieveDefaultBranch)(octokit, repo);
-        const commitComparison = await (0, retrieveCommitComparison_1.retrieveCommitComparison)(octokit, defaultBranch, lastVersionTag.tag);
-        const commitComparisonCommits = commitComparison.commits ?? [];
-        if (!commitComparisonCommits.length) {
-            core.info(`No commits found after last version tag: ${commitComparison.html_url}`);
-            return;
-        }
-        const commitComparisonFiles = commitComparison.files;
-        if (expectedFilesToChange.length && commitComparisonFiles != null) {
-            const expectedFilesToChangeMatcher = (0, picomatch_1.default)(expectedFilesToChange);
-            let areExpectedFilesChanged = false;
-            for (const commitComparisonFile of commitComparisonFiles) {
-                if (expectedFilesToChangeMatcher(commitComparisonFile.filename)) {
-                    areExpectedFilesChanged = true;
-                    core.info(`Expected file was changed: ${commitComparisonFile.blob_url}`);
-                }
-            }
-            if (!areExpectedFilesChanged) {
-                core.info(`No expected files were changed:\n  ${expectedFilesToChange.join('\n  ')}`);
-                return;
-            }
-        }
-        const checkRuns = await (0, retrieveCheckRuns_1.retrieveCheckRuns)(octokit, defaultBranch.commit.sha);
-        const failureCheckRuns = checkRuns.filter(it => ![
-            'success',
-            'neutral',
-            'cancelled',
-            'skipped',
-            'action_required',
-        ].includes(it.conclusion ?? ''));
-        if (failureCheckRuns.length) {
-            const currentWorkflowRun = await octokit.actions.getWorkflowRun({
-                owner: github_1.context.repo.owner,
-                repo: github_1.context.repo.repo,
-                run_id: github_1.context.runId,
-            }).then(it => it.data);
-            const currentCheckSuiteId = currentWorkflowRun.check_suite_id;
-            let failureCheckRunsExceptCurrent = failureCheckRuns;
-            if (currentCheckSuiteId != null) {
-                failureCheckRunsExceptCurrent = failureCheckRunsExceptCurrent
-                    .filter(checkRun => checkRun.check_suite?.id !== currentCheckSuiteId);
-            }
-            if (failureCheckRunsExceptCurrent.length) {
-                let message = `${failureCheckRunsExceptCurrent.length} check run(s) not succeed for '${defaultBranch.name}' branch:`;
-                for (const failureCheckRun of failureCheckRunsExceptCurrent) {
-                    message += `\n  ${failureCheckRun.html_url}`;
-                    if (failureCheckRun.output?.title != null) {
-                        message += ` (${failureCheckRun.output?.title})`;
-                    }
-                    if (failureCheckRun.conclusion != null) {
-                        message += ` (${failureCheckRun.conclusion})`;
-                    }
-                }
-                throw new Error(message);
-            }
-        }
-        const changeLogItems = [];
-        function addChangelogItem(commit, type, message, originalMessage, author = undefined, pullRequestNumber = undefined) {
-            message = message.trim();
-            if (!message.length)
-                return;
-            for (const skippedChangelogCommitPrefix of skippedChangelogCommitPrefixes) {
-                if (originalMessage.startsWith(skippedChangelogCommitPrefix)) {
-                    const messageAfterPrefix = originalMessage.substring(skippedChangelogCommitPrefix.length);
-                    if (!messageAfterPrefix.trim().length
-                        || messageAfterPrefix.match(/^\W/)
-                        || skippedChangelogCommitPrefix.match(/\W$/)) {
-                        core.info(`Excluding changelog message by prefix '${skippedChangelogCommitPrefix}': ${originalMessage}`);
-                        return;
-                    }
-                }
-            }
-            if (author == null)
-                author = undefined;
-            if (pullRequestNumber == null)
-                pullRequestNumber = undefined;
-            const alreadyCreatedChangeLogItem = changeLogItems.find(item => item.message === message && item.author === author);
-            if (alreadyCreatedChangeLogItem != null) {
-                if (pullRequestNumber != null) {
-                    if (!alreadyCreatedChangeLogItem.pullRequestNumbers.includes(pullRequestNumber)) {
-                        alreadyCreatedChangeLogItem.pullRequestNumbers.push(pullRequestNumber);
-                    }
-                }
-                if (!alreadyCreatedChangeLogItem.commits.includes(commit.sha)) {
-                    alreadyCreatedChangeLogItem.commits.push(commit.sha);
-                }
-                if (alreadyCreatedChangeLogItem.type == null) {
-                    alreadyCreatedChangeLogItem.type = type;
-                }
-            }
-            else {
-                changeLogItems.push({
-                    message,
-                    author: author != null ? author : undefined,
-                    pullRequestNumbers: pullRequestNumber != null ? [pullRequestNumber] : [],
-                    commits: [commit.sha],
-                    type,
-                });
-            }
-        }
-        forEachCommit: for (const commit of commitComparisonCommits) {
-            const message = commit.commit.message
-                .split(/[\n\r]+/)[0]
-                .trim();
-            core.debug(`Testing if commit is allowed: ${commit.html_url}: ${message}`);
-            const pullRequestsAssociatedWithCommit = await (0, retrievePullRequestsAssociatedWithCommit_1.retrievePullRequestsAssociatedWithCommit)(octokit, commit);
-            for (const pullRequestAssociatedWithCommit of pullRequestsAssociatedWithCommit) {
-                const labels = pullRequestAssociatedWithCommit.labels.map(it => it.name);
-                for (const allowedPullRequestLabel of allowedPullRequestLabels) {
-                    if (labels.includes(allowedPullRequestLabel)) {
-                        core.info(`Allowed commit by Pull Request label ('${allowedPullRequestLabel}'): ${message}: ${pullRequestAssociatedWithCommit.html_url}`);
-                        let type = undefined;
-                        if ((0, utils_1.hasNotEmptyIntersection)(labels, dependencyUpdatesPullRequestLabels)
-                            || dependencyUpdatesAuthors.includes(pullRequestAssociatedWithCommit.user?.login ?? '')) {
-                            type = 'dependency';
-                        }
-                        addChangelogItem(commit, type, pullRequestAssociatedWithCommit.title, pullRequestAssociatedWithCommit.title, pullRequestAssociatedWithCommit.user?.login ?? undefined, pullRequestAssociatedWithCommit.number);
-                        continue forEachCommit;
-                    }
-                }
-            }
-            for (const allowedCommitPrefix of allowedCommitPrefixes) {
-                if (message.startsWith(allowedCommitPrefix)) {
-                    const messageAfterPrefix = message.substring(allowedCommitPrefix.length);
-                    if (!messageAfterPrefix.trim().length
-                        || messageAfterPrefix.match(/^\W/)
-                        || allowedCommitPrefix.match(/\W$/)) {
-                        core.info(`Allowed commit by commit message prefix ('${allowedCommitPrefix}'): ${message}: ${commit.html_url}`);
-                        let type = undefined;
-                        if (dependencyUpdatesAuthors.includes(commit.author?.name ?? '')) {
-                            type = 'dependency';
-                        }
-                        addChangelogItem(commit, type, messageAfterPrefix.trim().length
-                            ? messageAfterPrefix.trim()
-                            : message, message, commit.author?.name);
-                        continue forEachCommit;
-                    }
-                }
-            }
-            const failOnNotAllowedCommitMessage = `Not allowed commit: ${message}: ${commit.html_url}`;
-            if (failOnNotAllowedCommits) {
-                throw new Error(failOnNotAllowedCommitMessage);
-            }
-            else {
-                core.info(failOnNotAllowedCommitMessage);
-                return;
-            }
-        }
-        const releaseVersion = (0, incrementVersion_1.incrementVersion)(lastVersionTag.version, versionIncrementMode);
-        const releaseTag = `${versionTagPrefix}${releaseVersion}`;
-        const releaseDescriptionLines = ['_Automatic release_'];
-        if (changeLogItems.length) {
-            function appendChangeLogItemToReleaseDescriptionLines(changeLogItem) {
-                const tokens = [
-                    '*',
-                    changeLogItem.message,
-                ];
-                if (changeLogItem.pullRequestNumbers.length) {
-                    tokens.push(`(#${changeLogItem.pullRequestNumbers.join(', #')})`);
-                }
-                else {
-                    tokens.push(`(${changeLogItem.commits.join(', ')})`);
-                }
-                if (changeLogItem.author != null) {
-                    tokens.push(`@${changeLogItem.author.replace(/\[bot\]$/, '')}`);
-                }
-                releaseDescriptionLines.push(tokens.join(' '));
-            }
-            const typeTitles = {
-                'dependency': '📦 Dependency updates',
-            };
-            releaseDescriptionLines.push('');
-            releaseDescriptionLines.push('# What\'s Changed');
-            releaseDescriptionLines.push('');
-            changeLogItems
-                .filter(it => it.type == null || !(it.type in typeTitles))
-                .forEach(appendChangeLogItemToReleaseDescriptionLines);
-            Object.entries(typeTitles).forEach(([type, title]) => {
-                const currentChangeLogItems = changeLogItems
-                    .filter(it => it.type === type);
-                if (currentChangeLogItems.length) {
-                    releaseDescriptionLines.push('');
-                    releaseDescriptionLines.push(`## ${title}`);
-                    releaseDescriptionLines.push('');
-                    currentChangeLogItems.forEach(appendChangeLogItemToReleaseDescriptionLines);
-                }
-            });
-        }
-        const releaseDescription = releaseDescriptionLines.join('\n');
-        const description = releaseDescription.length
-            ? `description:\n  ${releaseDescription.split('\n').join('\n  ')}`
-            : `empty description`;
-        core.info(`Creating a new release '${releaseVersion}' with Git tag: '${releaseTag}', and with ${description}`);
-        if (dryRun) {
-            core.warning(`Skipping release creation, as dry run is enabled`);
-            return;
-        }
-        const createdRelease = await (0, createRelease_1.createRelease)(octokit, defaultBranch, releaseVersion, releaseTag, releaseDescription);
-        core.info(`Created release: ${createdRelease.html_url}`);
-    }
-    catch (error) {
-        core.setFailed(error instanceof Error ? error : error.toString());
-        throw error;
-    }
-}
-run();
-
-
-/***/ }),
-
 /***/ 7351:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -36457,17 +35320,885 @@ module.exports = require("zlib");
 /******/ 	}
 /******/ 	
 /************************************************************************/
+/******/ 	/* webpack/runtime/compat get default export */
+/******/ 	(() => {
+/******/ 		// getDefaultExport function for compatibility with non-harmony modules
+/******/ 		__nccwpck_require__.n = (module) => {
+/******/ 			var getter = module && module.__esModule ?
+/******/ 				() => (module['default']) :
+/******/ 				() => (module);
+/******/ 			__nccwpck_require__.d(getter, { a: getter });
+/******/ 			return getter;
+/******/ 		};
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/define property getters */
+/******/ 	(() => {
+/******/ 		// define getter functions for harmony exports
+/******/ 		__nccwpck_require__.d = (exports, definition) => {
+/******/ 			for(var key in definition) {
+/******/ 				if(__nccwpck_require__.o(definition, key) && !__nccwpck_require__.o(exports, key)) {
+/******/ 					Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
+/******/ 				}
+/******/ 			}
+/******/ 		};
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/hasOwnProperty shorthand */
+/******/ 	(() => {
+/******/ 		__nccwpck_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/make namespace object */
+/******/ 	(() => {
+/******/ 		// define __esModule on exports
+/******/ 		__nccwpck_require__.r = (exports) => {
+/******/ 			if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
+/******/ 				Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
+/******/ 			}
+/******/ 			Object.defineProperty(exports, '__esModule', { value: true });
+/******/ 		};
+/******/ 	})();
+/******/ 	
 /******/ 	/* webpack/runtime/compat */
 /******/ 	
 /******/ 	if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = __dirname + "/";
 /******/ 	
 /************************************************************************/
-/******/ 	
-/******/ 	// startup
-/******/ 	// Load entry module and return exports
-/******/ 	// This entry module is referenced by other modules so it can't be inlined
-/******/ 	var __webpack_exports__ = __nccwpck_require__(9538);
-/******/ 	module.exports = __webpack_exports__;
-/******/ 	
+var __webpack_exports__ = {};
+// This entry need to be wrapped in an IIFE because it need to be in strict mode.
+(() => {
+"use strict";
+// ESM COMPAT FLAG
+__nccwpck_require__.r(__webpack_exports__);
+
+// EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
+var core = __nccwpck_require__(2186);
+// EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
+var github = __nccwpck_require__(5438);
+// EXTERNAL MODULE: ./node_modules/picomatch/index.js
+var picomatch = __nccwpck_require__(8569);
+var picomatch_default = /*#__PURE__*/__nccwpck_require__.n(picomatch);
+;// CONCATENATED MODULE: ./build/internal/createRelease.js
+
+
+async function createRelease(octokit, branch, releaseVersion, releaseTag, releaseDescription) {
+    core.debug(`Creating a new release.`
+        + ` Branch: '${branch.name}'.`
+        + ` Release version: '${releaseVersion}'.`
+        + ` Release tag: '${releaseTag}'.`
+        + ` Release description: '${releaseDescription}'.`);
+    return octokit.repos.createRelease({
+        owner: github.context.repo.owner,
+        repo: github.context.repo.repo,
+        target_commitish: branch.name,
+        tag_name: releaseTag,
+        name: releaseVersion.toString(),
+        body: releaseDescription,
+    }).then(it => it.data);
+}
+
+;// CONCATENATED MODULE: ./build/internal/types.js
+const versionIncrementModes = [
+    'major',
+    'minor',
+    'patch',
+];
+
+;// CONCATENATED MODULE: ./build/internal/Version.js
+class Version {
+    static parse(value) {
+        if (value == null) {
+            return undefined;
+        }
+        const text = value.toString().trim();
+        if (text.length === 0) {
+            return undefined;
+        }
+        return new Version(text);
+    }
+    _numbers;
+    _suffix;
+    _suffixTokens;
+    constructor(version) {
+        this._numbers = parseNumbers(version);
+        this._suffix = parseSuffixString(version);
+        this._suffixTokens = parseSuffixTokens(version);
+    }
+    toString() {
+        return this._numbers.join('.') + this._suffix;
+    }
+    get numbers() {
+        return [...this._numbers];
+    }
+    number(pos) {
+        if (pos < 1) {
+            throw new Error(`pos must be greater or equal to 1: ${pos}`);
+        }
+        if (pos <= this._numbers.length) {
+            return this._numbers[pos - 1];
+        }
+        else {
+            return undefined;
+        }
+    }
+    get suffix() {
+        return this._suffix;
+    }
+    withNumbers(numbers) {
+        if (numbers.length === 0) {
+            throw new Error('numbers must not be empty');
+        }
+        return new Version(numbers.join('.') + this._suffix);
+    }
+    withSuffix(suffix) {
+        if (suffix.length === 0) {
+            return new Version(this._numbers.join('.'));
+        }
+        const ch = suffix.substring(0, 1);
+        if (('a' <= ch && ch <= 'z')
+            || ('A' <= ch && ch <= 'Z')
+            || ('0' <= ch && ch <= '9')) {
+            return new Version(`${this._numbers.join('.')}-${suffix}`);
+        }
+        else {
+            return new Version(this._numbers.join('.') + suffix);
+        }
+    }
+    withoutSuffix() {
+        if (this._suffix.length === 0) {
+            return this;
+        }
+        else {
+            return new Version(this._numbers.join('.'));
+        }
+    }
+    withNumber(pos, value) {
+        if (pos < 1) {
+            throw new Error(`pos must be greater or equal to 1: ${pos}`);
+        }
+        if (value < 0) {
+            throw new Error(`value must be greater or equal to 0: ${value}`);
+        }
+        const newNumbers = [...this._numbers];
+        for (let i = newNumbers.length; i < pos - 1; ++i) {
+            newNumbers[i] = 0;
+        }
+        newNumbers[pos - 1] = value;
+        return this.withNumbers(newNumbers);
+    }
+    withoutNumber(pos) {
+        if (pos < 2) {
+            throw new Error(`pos must be greater or equal to 2: ${pos}`);
+        }
+        if (pos > this._numbers.length) {
+            return this;
+        }
+        const newNumbers = [...this._numbers];
+        newNumbers.splice(pos - 1);
+        return this.withNumbers(newNumbers);
+    }
+    incrementNumber(pos, incrementer = 1) {
+        const number = this.number(pos) || 0;
+        return this.withNumber(pos, number + incrementer);
+    }
+    compareTo(other) {
+        let result = compareNumbers(this._numbers, other._numbers);
+        if (result === 0) {
+            result = compareSuffixTokens(this._suffixTokens, other._suffixTokens);
+        }
+        return result;
+    }
+    get hasSuffix() {
+        return this._suffixTokens.find(token => typeof token === 'string') !== undefined;
+    }
+    get isRelease() {
+        return !this.hasSuffix || getTokensOrder(this._suffixTokens) >= getTokensOrder(['release']);
+    }
+    get isSnapshot() {
+        return getTokensOrder(this._suffixTokens) === getTokensOrder(['snapshot']);
+    }
+    get isRc() {
+        return getTokensOrder(this._suffixTokens) === getTokensOrder(['rc']);
+    }
+    get isMilestone() {
+        return getTokensOrder(this._suffixTokens) === getTokensOrder(['milestone']);
+    }
+    get isBeta() {
+        return getTokensOrder(this._suffixTokens) === getTokensOrder(['beta']);
+    }
+    get isAlpha() {
+        return getTokensOrder(this._suffixTokens) === getTokensOrder(['alpha']);
+    }
+}
+function compareVersions(version1, version2) {
+    return version1.compareTo(version2);
+}
+function compareVersionsDesc(version1, version2) {
+    return -1 * compareVersions(version1, version2);
+}
+const VERSION_REGEX = /^(?<numbers>\d+(\.\d+)*)(?<suffix>[-.+_a-z0-9]*)$/i;
+function isVersionString(version) {
+    try {
+        return matchVersion(version) != null;
+    }
+    catch (e) {
+        return false;
+    }
+}
+function matchVersion(version) {
+    if (version.length === 0) {
+        throw new Error('Version must not be empty');
+    }
+    const match = version.match(VERSION_REGEX);
+    if (match == null) {
+        throw new Error(`Version doesn't match to ${VERSION_REGEX}: ${version}`);
+    }
+    return match;
+}
+function parseNumbersString(version) {
+    const match = matchVersion(version);
+    return match.groups.numbers;
+}
+function parseNumbers(version) {
+    const numbersString = parseNumbersString(version);
+    return numbersString.split('.')
+        .map(token => parseInt(token));
+}
+function parseSuffixString(version) {
+    const match = matchVersion(version);
+    return match.groups.suffix || '';
+}
+const SPLIT_LETTER_FROM_DIGIT = /([a-z])(\d)/g;
+const SPLIT_DIGIT_FROM_LETTER = /(\d)([a-z])/g;
+function parseSuffixTokens(version) {
+    const suffix = parseSuffixString(version)
+        .toLowerCase()
+        .replace(SPLIT_LETTER_FROM_DIGIT, '$1-$2')
+        .replace(SPLIT_DIGIT_FROM_LETTER, '$1-$2');
+    return suffix.split(/[-.+_]/)
+        .filter(token => token.length > 0)
+        .map(token => {
+        const number = parseInt(token);
+        if (!isNaN(number)) {
+            return number;
+        }
+        else {
+            return token;
+        }
+    });
+}
+function compareNumbers(numbers1, numbers2) {
+    for (let i = 0; i < Math.min(numbers1.length, numbers2.length); ++i) {
+        const number1 = numbers1[i];
+        const number2 = numbers2[i];
+        const result = number1 - number2;
+        if (result !== 0) {
+            return result;
+        }
+    }
+    return numbers1.length - numbers2.length;
+}
+function compareSuffixTokens(tokens1, tokens2) {
+    {
+        const order1 = getTokensOrder(tokens1);
+        const order2 = getTokensOrder(tokens2);
+        const result = order1 - order2;
+        if (result !== 0) {
+            return result;
+        }
+    }
+    for (let i = 0; i < Math.min(tokens1.length, tokens2.length); ++i) {
+        const token1 = tokens1[i];
+        const token2 = tokens2[i];
+        if (typeof token1 === 'number' && typeof token2 === 'number') {
+            const result = token1 - token2;
+            if (result !== 0) {
+                return result;
+            }
+        }
+        else if (typeof token1 === 'number') {
+            return 1;
+        }
+        else if (typeof token2 === 'number') {
+            return -1;
+        }
+        else {
+            if (token1 > token2) {
+                return 1;
+            }
+            else if (token1 < token2) {
+                return -1;
+            }
+        }
+    }
+    return tokens1.length - tokens2.length;
+}
+const TOKENS_ORDER = {
+    'sp': 2,
+    'release': 1,
+    'r': 1,
+    'ga': 1,
+    'final': 1,
+    'snapshot': -1,
+    'nightly': -2,
+    'rc': -3,
+    'cr': -3,
+    'milestone': -4,
+    'm': -4,
+    'beta': -5,
+    'b': -5,
+    'alpha': -6,
+    'a': -6,
+    'dev': -7,
+    'pr': -7,
+};
+function getTokensOrder(tokens) {
+    for (const token of tokens) {
+        if (typeof token === 'string') {
+            const order = TOKENS_ORDER[token];
+            if (order != null) {
+                return order;
+            }
+        }
+    }
+    return 0;
+}
+
+;// CONCATENATED MODULE: ./build/internal/incrementVersion.js
+
+
+function incrementVersion(version, versionIncrementMode) {
+    if (version.hasSuffix) {
+        throw new Error(`Version has suffix: ${version}`);
+    }
+    const numbers = [...version.numbers];
+    if (!numbers.length) {
+        throw new Error(`Version doesn't have numbers: ${version}`);
+    }
+    function incrementNumber(index) {
+        while (numbers.length <= index) {
+            numbers.push(0);
+        }
+        ++numbers[index];
+    }
+    if (versionIncrementMode === 'major') {
+        incrementNumber(0);
+    }
+    else if (versionIncrementMode === 'minor') {
+        incrementNumber(1);
+    }
+    else if (versionIncrementMode === 'patch') {
+        incrementNumber(2);
+    }
+    else {
+        throw new Error(`Unsupported versionIncrementMode: '${versionIncrementMode}'.`
+            + ` Only these values are supported: '${versionIncrementModes.join("', '")}'.`);
+    }
+    return new Version(numbers.join('.'));
+}
+
+// EXTERNAL MODULE: ./node_modules/@actions/github/lib/utils.js
+var utils = __nccwpck_require__(3030);
+// EXTERNAL MODULE: ./node_modules/@octokit/plugin-request-log/dist-node/index.js
+var dist_node = __nccwpck_require__(8883);
+// EXTERNAL MODULE: ./node_modules/@octokit/plugin-retry/dist-node/index.js
+var plugin_retry_dist_node = __nccwpck_require__(6298);
+// EXTERNAL MODULE: ./node_modules/@octokit/plugin-throttling/dist-node/index.js
+var plugin_throttling_dist_node = __nccwpck_require__(9968);
+;// CONCATENATED MODULE: ./build/internal/octokit.js
+
+
+
+
+
+const OctokitWithPlugins = utils.GitHub.plugin(plugin_retry_dist_node.retry)
+    .plugin(plugin_throttling_dist_node.throttling)
+    .plugin(dist_node.requestLog)
+    .defaults({
+    previews: [
+        'baptiste',
+        'mercy',
+    ],
+});
+function newOctokitInstance(token) {
+    const baseOptions = (0,utils.getOctokitOptions)(token);
+    const throttleOptions = {
+        throttle: {
+            onRateLimit: (retryAfter, options) => {
+                const retryCount = options.request.retryCount;
+                const retryLogInfo = retryCount === 0 ? '' : ` (retry #${retryCount})`;
+                core.debug(`Request quota exhausted for request ${options.method} ${options.url}${retryLogInfo}`);
+                return retryCount <= 4;
+            },
+            onSecondaryRateLimit: (retryAfter, options) => {
+                core.error(`Abuse detected for request ${options.method} ${options.url}`);
+                return false;
+            },
+        },
+    };
+    const retryOptions = {
+        retry: {
+            doNotRetry: ['429'],
+        },
+    };
+    const logOptions = {};
+    const traceLogging = __nccwpck_require__(385)({ level: 'trace' });
+    if (core.isDebug()) {
+        logOptions.log = traceLogging;
+    }
+    const allOptions = {
+        ...baseOptions,
+        ...throttleOptions,
+        ...retryOptions,
+        ...logOptions,
+    };
+    const octokit = new OctokitWithPlugins(allOptions);
+    const client = {
+        ...octokit.rest,
+        paginate: octokit.paginate,
+    };
+    return client;
+}
+
+;// CONCATENATED MODULE: ./build/internal/retrieveCheckRuns.js
+
+async function retrieveCheckRuns(octokit, commitSha) {
+    return octokit.paginate(octokit.checks.listForRef, {
+        owner: github.context.repo.owner,
+        repo: github.context.repo.repo,
+        ref: commitSha,
+        filter: 'latest',
+    });
+}
+
+;// CONCATENATED MODULE: ./build/internal/retrieveCommitComparison.js
+
+
+async function retrieveCommitComparison(octokit, branch, tag) {
+    const perPage = 100;
+    core.debug(`Retrieving commit comparison.`
+        + ` Branch: '${branch.name}'.`
+        + ` Tag: '${tag.name}'.`
+        + ` Commits per page: '${perPage}'.`
+        + ` Page: '1'.`);
+    const commitComparison = await octokit.repos.compareCommitsWithBasehead({
+        owner: github.context.repo.owner,
+        repo: github.context.repo.repo,
+        basehead: `${tag.commit.sha}...${branch.commit.sha}`,
+        page: 1,
+        per_page: perPage,
+    }).then(it => it.data);
+    commitComparison.commits = commitComparison.commits || [];
+    let lastLoadedCommitsCount = commitComparison.commits.length;
+    core.debug(`  lastLoadedCommitsCount = ${lastLoadedCommitsCount}`);
+    for (let page = 2; lastLoadedCommitsCount >= perPage; ++page) {
+        core.debug(`Retrieving commit comparison.`
+            + ` Branch: '${branch.name}'.`
+            + ` Tag: '${tag.name}'.`
+            + ` Commits per page: '${perPage}'.`
+            + ` Page: '${page}'.`);
+        const pageCommitComparison = await octokit.repos.compareCommitsWithBasehead({
+            owner: github.context.repo.owner,
+            repo: github.context.repo.repo,
+            basehead: `${tag.commit.sha}...${branch.commit.sha}`,
+            page,
+            per_page: perPage,
+        }).then(it => it.data);
+        pageCommitComparison.commits = pageCommitComparison.commits || [];
+        pageCommitComparison.commits.forEach(commit => commitComparison.commits.push(commit));
+        lastLoadedCommitsCount = pageCommitComparison.commits.length;
+        core.debug(`  lastLoadedCommitsCount = ${lastLoadedCommitsCount}`);
+    }
+    return commitComparison;
+}
+
+;// CONCATENATED MODULE: ./build/internal/retrieveDefaultBranch.js
+
+
+async function retrieveDefaultBranch(octokit, repo) {
+    core.debug(`Retrieving default branch`);
+    return octokit.repos.getBranch({
+        owner: github.context.repo.owner,
+        repo: github.context.repo.repo,
+        branch: repo.default_branch,
+    }).then(it => it.data);
+}
+
+;// CONCATENATED MODULE: ./build/internal/retrievePullRequestsAssociatedWithCommit.js
+
+
+async function retrievePullRequestsAssociatedWithCommit(octokit, commit) {
+    core.debug(`Retrieving Pull Requests associated with commit.`
+        + ` Commit: '${commit.sha}'.`);
+    return octokit.paginate(octokit.repos.listPullRequestsAssociatedWithCommit, {
+        owner: github.context.repo.owner,
+        repo: github.context.repo.repo,
+        commit_sha: commit.sha,
+    });
+}
+
+;// CONCATENATED MODULE: ./build/internal/retrieveRepo.js
+
+
+async function retrieveRepo(octokit) {
+    core.debug(`Retrieving repository info`);
+    return octokit.repos.get({
+        owner: github.context.repo.owner,
+        repo: github.context.repo.repo,
+    }).then(it => it.data);
+}
+
+;// CONCATENATED MODULE: ./build/internal/retrieveVersionTags.js
+
+
+
+async function retrieveVersionTags(octokit, versionTagPrefixes = []) {
+    core.debug(`Retrieving version tags.`
+        + ` Version tag prefixes: '${versionTagPrefixes.join("', '")}'.`);
+    const tags = await octokit.paginate(octokit.repos.listTags, {
+        owner: github.context.repo.owner,
+        repo: github.context.repo.repo,
+    });
+    const result = [];
+    const versionTagSortedPrefixes = [...versionTagPrefixes];
+    versionTagSortedPrefixes.push('');
+    versionTagSortedPrefixes.sort((o1, o2) => -1 * (o1.length - o2.length));
+    for (const tag of tags) {
+        let version = undefined;
+        forEachTagVersionPrefix: for (const versionTagSortedPrefix of versionTagSortedPrefixes) {
+            for (const prefix of [`${versionTagSortedPrefix}-`, versionTagSortedPrefix]) {
+                if (tag.name.startsWith(prefix)) {
+                    const potentialVersion = tag.name.substring(prefix.length);
+                    if (isVersionString(potentialVersion)) {
+                        version = Version.parse(potentialVersion);
+                        if (version != null) {
+                            break forEachTagVersionPrefix;
+                        }
+                    }
+                }
+            }
+        }
+        if (version == null) {
+            continue;
+        }
+        result.push({
+            version,
+            tag,
+        });
+    }
+    result.sort((o1, o2) => -1 * o1.version.compareTo(o2.version));
+    return result;
+}
+async function retrieveLastVersionTag(octokit, tagVersionPrefixes = []) {
+    return retrieveVersionTags(octokit, tagVersionPrefixes)
+        .then(versionTags => {
+        if (versionTags.length) {
+            return versionTags[0];
+        }
+        else {
+            return undefined;
+        }
+    });
+}
+
+;// CONCATENATED MODULE: ./build/internal/utils.js
+function hasNotEmptyIntersection(array1, array2) {
+    if (array1 == null || !array1.length) {
+        return false;
+    }
+    if (array2 == null || !array2.length) {
+        return false;
+    }
+    for (const element1 of array1) {
+        if (!array2.includes(element1)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+;// CONCATENATED MODULE: ./build/main.js
+
+
+
+
+
+
+
+
+
+
+
+
+
+const githubToken = core.getInput('githubToken', { required: true });
+const failOnNotAllowedCommits = core.getInput('failOnNotAllowedCommits', { required: true }).toLowerCase() === 'true';
+const versionTagPrefix = core.getInput('versionTagPrefix', { required: false });
+const allowedVersionTagPrefixes = core.getInput('allowedVersionTagPrefixes', { required: false })
+    .split(/[\n\r,;]+/)
+    .map(it => it.trim())
+    .filter(it => it.length);
+allowedVersionTagPrefixes.push(versionTagPrefix);
+const expectedFilesToChange = core.getInput('expectedFilesToChange', { required: false })
+    .split(/[\n\r,;]+/)
+    .map(it => it.trim())
+    .filter(it => it.length);
+const allowedCommitPrefixes = core.getInput('allowedCommitPrefixes', { required: false })
+    .split(/[\n\r,;]+/)
+    .map(it => it.trim())
+    .filter(it => it.length);
+const allowedPullRequestLabels = core.getInput('allowedPullRequestLabels', { required: false })
+    .split(/[\n\r,;]+/)
+    .map(it => it.trim())
+    .filter(it => it.length);
+const skippedChangelogCommitPrefixes = core.getInput('skippedChangelogCommitPrefixes', { required: false })
+    .split(/[\n\r,;]+/)
+    .map(it => it.trim())
+    .filter(it => it.length);
+const dependencyUpdatesPullRequestLabels = core.getInput('dependencyUpdatesPullRequestLabels', { required: false })
+    .split(/[\n\r,;]+/)
+    .map(it => it.trim())
+    .filter(it => it.length);
+const dependencyUpdatesAuthors = core.getInput('dependencyUpdatesAuthors', { required: false })
+    .split(/[\n\r,;]+/)
+    .map(it => it.trim())
+    .filter(it => it.length);
+const versionIncrementMode = core.getInput('versionIncrementMode', { required: true }).toLowerCase();
+const dryRun = core.getInput('dryRun', { required: true }).toLowerCase() === 'true';
+const octokit = newOctokitInstance(githubToken);
+async function run() {
+    try {
+        await core.group('Parameters', async () => {
+            core.info(`versionTagPrefix: ${versionTagPrefix}`);
+            core.info(`allowedVersionTagPrefixes:\n  ${allowedVersionTagPrefixes.join('\n  ')}`);
+            core.info(`expectedFilesToChange:\n  ${expectedFilesToChange.join('\n  ')}`);
+            core.info(`allowedCommitPrefixes:\n  ${allowedCommitPrefixes.join('\n  ')}`);
+            core.info(`allowedPullRequestLabels:\n  ${allowedPullRequestLabels.join('\n  ')}`);
+            core.info(`skippedChangelogCommitPrefixes:\n  ${skippedChangelogCommitPrefixes.join('\n  ')}`);
+            core.info(`versionIncrementMode: ${versionIncrementMode}`);
+            core.info(`dryRun: ${dryRun}`);
+        });
+        const repo = await retrieveRepo(octokit);
+        const lastVersionTag = await retrieveLastVersionTag(octokit, allowedVersionTagPrefixes);
+        if (lastVersionTag == null) {
+            core.info(`Skipping release creation, as no version tags found for repository ${repo.html_url}`);
+            return;
+        }
+        core.info(`Last version: '${lastVersionTag.version}', tag: ${repo.html_url}/releases/tag/${lastVersionTag.tag.name}`);
+        if (lastVersionTag.version.hasSuffix) {
+            core.warning(`Skipping release creation, as last version has suffix: '${lastVersionTag.version}'`);
+            return;
+        }
+        const defaultBranch = await retrieveDefaultBranch(octokit, repo);
+        const commitComparison = await retrieveCommitComparison(octokit, defaultBranch, lastVersionTag.tag);
+        const commitComparisonCommits = commitComparison.commits ?? [];
+        if (!commitComparisonCommits.length) {
+            core.info(`No commits found after last version tag: ${commitComparison.html_url}`);
+            return;
+        }
+        const commitComparisonFiles = commitComparison.files;
+        if (expectedFilesToChange.length && commitComparisonFiles != null) {
+            const expectedFilesToChangeMatcher = picomatch_default()(expectedFilesToChange);
+            let areExpectedFilesChanged = false;
+            for (const commitComparisonFile of commitComparisonFiles) {
+                if (expectedFilesToChangeMatcher(commitComparisonFile.filename)) {
+                    areExpectedFilesChanged = true;
+                    core.info(`Expected file was changed: ${commitComparisonFile.blob_url}`);
+                }
+            }
+            if (!areExpectedFilesChanged) {
+                core.info(`No expected files were changed:\n  ${expectedFilesToChange.join('\n  ')}`);
+                return;
+            }
+        }
+        const checkRuns = await retrieveCheckRuns(octokit, defaultBranch.commit.sha);
+        const failureCheckRuns = checkRuns.filter(it => ![
+            'success',
+            'neutral',
+            'cancelled',
+            'skipped',
+            'action_required',
+        ].includes(it.conclusion ?? ''));
+        if (failureCheckRuns.length) {
+            const currentWorkflowRun = await octokit.actions.getWorkflowRun({
+                owner: github.context.repo.owner,
+                repo: github.context.repo.repo,
+                run_id: github.context.runId,
+            }).then(it => it.data);
+            const currentCheckSuiteId = currentWorkflowRun.check_suite_id;
+            let failureCheckRunsExceptCurrent = failureCheckRuns;
+            if (currentCheckSuiteId != null) {
+                failureCheckRunsExceptCurrent = failureCheckRunsExceptCurrent
+                    .filter(checkRun => checkRun.check_suite?.id !== currentCheckSuiteId);
+            }
+            if (failureCheckRunsExceptCurrent.length) {
+                let message = `${failureCheckRunsExceptCurrent.length} check run(s) not succeed for '${defaultBranch.name}' branch:`;
+                for (const failureCheckRun of failureCheckRunsExceptCurrent) {
+                    message += `\n  ${failureCheckRun.html_url}`;
+                    if (failureCheckRun.output?.title != null) {
+                        message += ` (${failureCheckRun.output?.title})`;
+                    }
+                    if (failureCheckRun.conclusion != null) {
+                        message += ` (${failureCheckRun.conclusion})`;
+                    }
+                }
+                throw new Error(message);
+            }
+        }
+        const changeLogItems = [];
+        function addChangelogItem(commit, type, message, originalMessage, author = undefined, pullRequestNumber = undefined) {
+            message = message.trim();
+            if (!message.length)
+                return;
+            for (const skippedChangelogCommitPrefix of skippedChangelogCommitPrefixes) {
+                if (originalMessage.startsWith(skippedChangelogCommitPrefix)) {
+                    const messageAfterPrefix = originalMessage.substring(skippedChangelogCommitPrefix.length);
+                    if (!messageAfterPrefix.trim().length
+                        || messageAfterPrefix.match(/^\W/)
+                        || skippedChangelogCommitPrefix.match(/\W$/)) {
+                        core.info(`Excluding changelog message by prefix '${skippedChangelogCommitPrefix}': ${originalMessage}`);
+                        return;
+                    }
+                }
+            }
+            if (author == null)
+                author = undefined;
+            if (pullRequestNumber == null)
+                pullRequestNumber = undefined;
+            const alreadyCreatedChangeLogItem = changeLogItems.find(item => item.message === message && item.author === author);
+            if (alreadyCreatedChangeLogItem != null) {
+                if (pullRequestNumber != null) {
+                    if (!alreadyCreatedChangeLogItem.pullRequestNumbers.includes(pullRequestNumber)) {
+                        alreadyCreatedChangeLogItem.pullRequestNumbers.push(pullRequestNumber);
+                    }
+                }
+                if (!alreadyCreatedChangeLogItem.commits.includes(commit.sha)) {
+                    alreadyCreatedChangeLogItem.commits.push(commit.sha);
+                }
+                if (alreadyCreatedChangeLogItem.type == null) {
+                    alreadyCreatedChangeLogItem.type = type;
+                }
+            }
+            else {
+                changeLogItems.push({
+                    message,
+                    author: author != null ? author : undefined,
+                    pullRequestNumbers: pullRequestNumber != null ? [pullRequestNumber] : [],
+                    commits: [commit.sha],
+                    type,
+                });
+            }
+        }
+        forEachCommit: for (const commit of commitComparisonCommits) {
+            const message = commit.commit.message
+                .split(/[\n\r]+/)[0]
+                .trim();
+            core.debug(`Testing if commit is allowed: ${commit.html_url}: ${message}`);
+            const pullRequestsAssociatedWithCommit = await retrievePullRequestsAssociatedWithCommit(octokit, commit);
+            for (const pullRequestAssociatedWithCommit of pullRequestsAssociatedWithCommit) {
+                const labels = pullRequestAssociatedWithCommit.labels.map(it => it.name);
+                for (const allowedPullRequestLabel of allowedPullRequestLabels) {
+                    if (labels.includes(allowedPullRequestLabel)) {
+                        core.info(`Allowed commit by Pull Request label ('${allowedPullRequestLabel}'): ${message}: ${pullRequestAssociatedWithCommit.html_url}`);
+                        let type = undefined;
+                        if (hasNotEmptyIntersection(labels, dependencyUpdatesPullRequestLabels)
+                            || dependencyUpdatesAuthors.includes(pullRequestAssociatedWithCommit.user?.login ?? '')) {
+                            type = 'dependency';
+                        }
+                        addChangelogItem(commit, type, pullRequestAssociatedWithCommit.title, pullRequestAssociatedWithCommit.title, pullRequestAssociatedWithCommit.user?.login ?? undefined, pullRequestAssociatedWithCommit.number);
+                        continue forEachCommit;
+                    }
+                }
+            }
+            for (const allowedCommitPrefix of allowedCommitPrefixes) {
+                if (message.startsWith(allowedCommitPrefix)) {
+                    const messageAfterPrefix = message.substring(allowedCommitPrefix.length);
+                    if (!messageAfterPrefix.trim().length
+                        || messageAfterPrefix.match(/^\W/)
+                        || allowedCommitPrefix.match(/\W$/)) {
+                        core.info(`Allowed commit by commit message prefix ('${allowedCommitPrefix}'): ${message}: ${commit.html_url}`);
+                        let type = undefined;
+                        if (dependencyUpdatesAuthors.includes(commit.author?.name ?? '')) {
+                            type = 'dependency';
+                        }
+                        addChangelogItem(commit, type, messageAfterPrefix.trim().length
+                            ? messageAfterPrefix.trim()
+                            : message, message, commit.author?.name);
+                        continue forEachCommit;
+                    }
+                }
+            }
+            const failOnNotAllowedCommitMessage = `Not allowed commit: ${message}: ${commit.html_url}`;
+            if (failOnNotAllowedCommits) {
+                throw new Error(failOnNotAllowedCommitMessage);
+            }
+            else {
+                core.info(failOnNotAllowedCommitMessage);
+                return;
+            }
+        }
+        const releaseVersion = incrementVersion(lastVersionTag.version, versionIncrementMode);
+        const releaseTag = `${versionTagPrefix}${releaseVersion}`;
+        const releaseDescriptionLines = ['_Automatic release_'];
+        if (changeLogItems.length) {
+            function appendChangeLogItemToReleaseDescriptionLines(changeLogItem) {
+                const tokens = [
+                    '*',
+                    changeLogItem.message,
+                ];
+                if (changeLogItem.pullRequestNumbers.length) {
+                    tokens.push(`(#${changeLogItem.pullRequestNumbers.join(', #')})`);
+                }
+                else {
+                    tokens.push(`(${changeLogItem.commits.join(', ')})`);
+                }
+                if (changeLogItem.author != null) {
+                    tokens.push(`@${changeLogItem.author.replace(/\[bot\]$/, '')}`);
+                }
+                releaseDescriptionLines.push(tokens.join(' '));
+            }
+            const typeTitles = {
+                'dependency': '📦 Dependency updates',
+            };
+            releaseDescriptionLines.push('');
+            releaseDescriptionLines.push('# What\'s Changed');
+            releaseDescriptionLines.push('');
+            changeLogItems
+                .filter(it => it.type == null || !(it.type in typeTitles))
+                .forEach(appendChangeLogItemToReleaseDescriptionLines);
+            Object.entries(typeTitles).forEach(([type, title]) => {
+                const currentChangeLogItems = changeLogItems
+                    .filter(it => it.type === type);
+                if (currentChangeLogItems.length) {
+                    releaseDescriptionLines.push('');
+                    releaseDescriptionLines.push(`## ${title}`);
+                    releaseDescriptionLines.push('');
+                    currentChangeLogItems.forEach(appendChangeLogItemToReleaseDescriptionLines);
+                }
+            });
+        }
+        const releaseDescription = releaseDescriptionLines.join('\n');
+        const description = releaseDescription.length
+            ? `description:\n  ${releaseDescription.split('\n').join('\n  ')}`
+            : `empty description`;
+        core.info(`Creating a new release '${releaseVersion}' with Git tag: '${releaseTag}', and with ${description}`);
+        if (dryRun) {
+            core.warning(`Skipping release creation, as dry run is enabled`);
+            return;
+        }
+        const createdRelease = await createRelease(octokit, defaultBranch, releaseVersion, releaseTag, releaseDescription);
+        core.info(`Created release: ${createdRelease.html_url}`);
+    }
+    catch (error) {
+        core.setFailed(error instanceof Error ? error : error.toString());
+        throw error;
+    }
+}
+run();
+
+})();
+
+module.exports = __webpack_exports__;
 /******/ })()
 ;
