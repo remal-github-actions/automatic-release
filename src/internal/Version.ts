@@ -165,7 +165,7 @@ export const VERSION_REGEX = /^(?<numbers>\d+(\.\d+)*)(?<suffix>[-.+_a-z0-9]*)$/
 export function isVersionString(version: string): boolean {
     try {
         return matchVersion(version) != null
-    } catch (e) {
+    } catch (_) {
         return false
     }
 }
