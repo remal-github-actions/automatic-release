@@ -35360,7 +35360,7 @@ function isVersionString(version) {
     try {
         return matchVersion(version) != null;
     }
-    catch (e) {
+    catch (_) {
         return false;
     }
 }
