@@ -10,7 +10,7 @@ import { retrieveDefaultBranch } from './internal/retrieveDefaultBranch'
 import { retrievePullRequestsAssociatedWithCommit } from './internal/retrievePullRequestsAssociatedWithCommit'
 import { retrieveRepo } from './internal/retrieveRepo'
 import { retrieveLastVersionTag } from './internal/retrieveVersionTags'
-import { ChangeLogItem, ChangeLogItemType, Commit, VersionIncrementMode } from './internal/types'
+import { ChangeLogItem, ChangeLogItemType, CheckRun, Commit, VersionIncrementMode } from './internal/types'
 import { hasNotEmptyIntersection } from './internal/utils'
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -51,6 +51,10 @@ const versionIncrementMode = core.getInput(
     'versionIncrementMode',
     { required: true },
 ).toLowerCase() as VersionIncrementMode
+const actionPathsAllowedToFail = core.getInput('actionPathsAllowedToFail', { required: false })
+    .split(/[\n\r,;]+/)
+    .map(it => it.trim())
+    .filter(it => it.length)
 const dryRun = core.getInput('dryRun', { required: true }).toLowerCase() === 'true'
 
 const octokit = newOctokitInstance(githubToken)
@@ -111,36 +115,69 @@ async function run(): Promise<void> {
 
 
         const checkRuns = await retrieveCheckRuns(octokit, defaultBranch.commit.sha)
-        const failureCheckRuns = checkRuns.filter(it => ![
+        const allFailureCheckRuns = checkRuns.filter(it => ![
             'success',
             'neutral',
             'cancelled',
             'skipped',
             'action_required',
         ].includes(it.conclusion ?? ''))
-        if (failureCheckRuns.length) {
+        if (allFailureCheckRuns.length) {
             const currentWorkflowRun = await octokit.actions.getWorkflowRun({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 run_id: context.runId,
             }).then(it => it.data)
-            const currentCheckSuiteId = currentWorkflowRun.check_suite_id
 
-            let failureCheckRunsExceptCurrent = failureCheckRuns
-            if (currentCheckSuiteId != null) {
-                failureCheckRunsExceptCurrent = failureCheckRunsExceptCurrent
-                    .filter(checkRun => checkRun.check_suite?.id !== currentCheckSuiteId)
+            const failureCheckRuns: CheckRun[] = []
+            for (const checkRun of allFailureCheckRuns) {
+                const currentCheckSuiteId = currentWorkflowRun.check_suite_id
+                if (currentCheckSuiteId != null && checkRun.check_suite?.id === currentCheckSuiteId) {
+                    core.info(`Ignoring failed ${checkRun.html_url} check run`
+                        + `, as its Check Suite ID equals to the current Check Suite ID: ${currentCheckSuiteId}`,
+                    )
+                    continue
+                }
+
+                if (actionPathsAllowedToFail.length) {
+                    const currentRepoUrlPrefix = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/`
+                    let url = checkRun.html_url
+                    if (url != null) {
+                        if (url.startsWith(currentRepoUrlPrefix)) {
+                            url = url.substring(currentRepoUrlPrefix.length)
+                        }
+                        const actionRunMatch = url?.match(
+                            /^actions\/runs\/(\d+)\/job\/(\d+)$/,
+                        )
+                        if (actionRunMatch != null) {
+                            const actionRunId = actionRunMatch[1]
+                            const actionRun = await octokit.actions.getWorkflowRun({
+                                owner: context.repo.owner,
+                                repo: context.repo.repo,
+                                run_id: parseInt(actionRunId),
+                            }).then(it => it.data)
+                            if (actionPathsAllowedToFail.includes(actionRun.path)) {
+                                core.info(`Ignoring failed ${checkRun.html_url} check run`
+                                    + `, as it's a part of GitHUb action that is allowed to fail: ${actionRun.path}`,
+                                )
+                                continue
+                            }
+                        }
+                    }
+
+                }
+                failureCheckRuns.push(checkRun)
             }
 
-            if (failureCheckRunsExceptCurrent.length) {
-                let message = `${failureCheckRunsExceptCurrent.length} check run(s) not succeed for '${defaultBranch.name}' branch:`
-                for (const failureCheckRun of failureCheckRunsExceptCurrent) {
-                    message += `\n  ${failureCheckRun.html_url}`
-                    if (failureCheckRun.output?.title != null) {
-                        message += ` (${failureCheckRun.output?.title})`
+            if (failureCheckRuns.length) {
+                let message = `${failureCheckRuns.length} check run(s) not succeed for '${defaultBranch.name}' branch:`
+                for (const checkRun of failureCheckRuns) {
+                    message += `\n  ${checkRun.html_url}`
+                    if (checkRun.output?.title != null) {
+                        message += ` (${checkRun.output?.title})`
                     }
-                    if (failureCheckRun.conclusion != null) {
-                        message += ` (${failureCheckRun.conclusion})`
+                    if (checkRun.conclusion != null) {
+                        message += ` (${checkRun.conclusion})`
                     }
                 }
                 throw new Error(message)
