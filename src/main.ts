@@ -232,7 +232,7 @@ async function run(): Promise<void> {
             } else {
                 changeLogItems.push({
                     message,
-                    author: author != null ? author : undefined,
+                    author: author ?? undefined,
                     pullRequestNumbers: pullRequestNumber != null ? [pullRequestNumber] : [],
                     commits: [commit.sha],
                     type,
