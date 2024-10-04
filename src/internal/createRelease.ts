@@ -1,8 +1,8 @@
 import * as core from '@actions/core'
 import {context} from '@actions/github'
-import {Octokit} from './octokit'
-import {Branch, Release} from './types'
-import {Version} from './Version'
+import {Octokit} from './octokit.js'
+import {Branch, Release} from './types.js'
+import {Version} from './Version.js'
 
 export async function createRelease(
     octokit: Octokit,

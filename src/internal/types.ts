@@ -1,5 +1,5 @@
 import type { components } from '@octokit/openapi-types'
-import { Version } from './Version'
+import { Version } from './Version.js'
 
 export type Repo = components['schemas']['full-repository']
 export type CommitSha = string

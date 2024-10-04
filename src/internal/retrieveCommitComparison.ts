@@ -1,7 +1,7 @@
 import * as core from '@actions/core'
 import {context} from '@actions/github'
-import {Octokit} from './octokit'
-import {Branch, CommitComparison, Tag} from './types'
+import {Octokit} from './octokit.js'
+import {Branch, CommitComparison, Tag} from './types.js'
 
 export async function retrieveCommitComparison(octokit: Octokit, branch: Branch, tag: Tag): Promise<CommitComparison> {
     const perPage = 100

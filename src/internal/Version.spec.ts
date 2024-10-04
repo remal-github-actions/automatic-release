@@ -8,7 +8,7 @@ import {
     parseSuffixTokens,
     Version,
     VERSION_REGEX
-} from './Version'
+} from './Version.js'
 
 describe('Version', () => {
 

@@ -1,7 +1,7 @@
 import * as core from '@actions/core'
 import {context} from '@actions/github'
-import {Octokit} from './octokit'
-import {Branch, Repo} from './types'
+import {Octokit} from './octokit.js'
+import {Branch, Repo} from './types.js'
 
 export async function retrieveDefaultBranch(octokit: Octokit, repo: Repo): Promise<Branch> {
     core.debug(`Retrieving default branch`)

@@ -1,5 +1,5 @@
-import {VersionIncrementMode, versionIncrementModes} from './types'
-import {Version} from './Version'
+import {VersionIncrementMode, versionIncrementModes} from './types.js'
+import {Version} from './Version.js'
 
 export function incrementVersion(version: Version, versionIncrementMode: VersionIncrementMode): Version {
     if (version.hasSuffix) {

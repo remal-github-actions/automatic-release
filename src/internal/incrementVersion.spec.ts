@@ -1,5 +1,5 @@
-import {incrementVersion} from './incrementVersion'
-import {Version} from './Version'
+import {incrementVersion} from './incrementVersion.js'
+import {Version} from './Version.js'
 
 describe('incrementVersion', () => {
 

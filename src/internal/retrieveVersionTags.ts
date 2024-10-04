@@ -1,8 +1,8 @@
 import * as core from '@actions/core'
 import {context} from '@actions/github'
-import {Octokit} from './octokit'
-import {VersionTag} from './types'
-import {isVersionString, Version} from './Version'
+import {Octokit} from './octokit.js'
+import {VersionTag} from './types.js'
+import {isVersionString, Version} from './Version.js'
 
 export async function retrieveVersionTags(
     octokit: Octokit,
