@@ -14,3 +14,20 @@ export function hasNotEmptyIntersection<T>(array1: T[] | null | undefined, array
 
     return true
 }
+
+export function onlyUnique(value: any, index: number, array: Array<any>): boolean {
+    return array.indexOf(value) === index
+}
+
+export function onlyUniqueBy(extractor: (value: any) => any): (value: any) => boolean {
+    const seen = new Set()
+    return (value: any): boolean => {
+        const extracted = extractor(value)
+        if (seen.has(extracted)) {
+            return false
+        } else {
+            seen.add(extracted)
+            return true
+        }
+    }
+}

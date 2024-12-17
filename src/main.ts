@@ -11,7 +11,7 @@ import { retrievePullRequestsAssociatedWithCommit } from './internal/retrievePul
 import { retrieveRepo } from './internal/retrieveRepo.js'
 import { retrieveLastVersionTag } from './internal/retrieveVersionTags.js'
 import { ChangeLogItem, ChangeLogItemType, CheckRun, Commit, VersionIncrementMode } from './internal/types.js'
-import { hasNotEmptyIntersection } from './internal/utils.js'
+import { hasNotEmptyIntersection, onlyUnique } from './internal/utils.js'
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -47,6 +47,10 @@ const dependencyUpdatesAuthors = core.getInput('dependencyUpdatesAuthors', { req
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
     .filter(it => it.length)
+const miscPullRequestLabels = core.getInput('miscPullRequestLabels', { required: false })
+    .split(/[\n\r,;]+/)
+    .map(it => it.trim())
+    .filter(it => it.length)
 const versionIncrementMode = core.getInput(
     'versionIncrementMode',
     { required: true },
@@ -57,23 +61,21 @@ const actionPathsAllowedToFail = core.getInput('actionPathsAllowedToFail', { req
     .filter(it => it.length)
 const dryRun = core.getInput('dryRun', { required: true }).toLowerCase() === 'true'
 
+;[
+    dependencyUpdatesPullRequestLabels,
+    miscPullRequestLabels,
+].flat().forEach(label => {
+    if (!allowedPullRequestLabels.includes(label)) {
+        allowedPullRequestLabels.push(label)
+    }
+})
+
 const octokit = newOctokitInstance(githubToken)
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 async function run(): Promise<void> {
     try {
-        await core.group('Parameters', async () => {
-            core.info(`versionTagPrefix: ${versionTagPrefix}`)
-            core.info(`allowedVersionTagPrefixes:\n  ${allowedVersionTagPrefixes.join('\n  ')}`)
-            core.info(`expectedFilesToChange:\n  ${expectedFilesToChange.join('\n  ')}`)
-            core.info(`allowedCommitPrefixes:\n  ${allowedCommitPrefixes.join('\n  ')}`)
-            core.info(`allowedPullRequestLabels:\n  ${allowedPullRequestLabels.join('\n  ')}`)
-            core.info(`skippedChangelogCommitPrefixes:\n  ${skippedChangelogCommitPrefixes.join('\n  ')}`)
-            core.info(`versionIncrementMode: ${versionIncrementMode}`)
-            core.info(`dryRun: ${dryRun}`)
-        })
-
         const repo = await retrieveRepo(octokit)
 
         const lastVersionTag = await retrieveLastVersionTag(octokit, allowedVersionTagPrefixes)
@@ -196,7 +198,9 @@ async function run(): Promise<void> {
             pullRequestNumber: number | null | undefined = undefined,
         ) {
             message = message.trim()
-            if (!message.length) return
+            if (!message.length) {
+                return
+            }
 
             for (const skippedChangelogCommitPrefix of skippedChangelogCommitPrefixes) {
                 if (originalMessage.startsWith(skippedChangelogCommitPrefix)) {
@@ -211,8 +215,12 @@ async function run(): Promise<void> {
                 }
             }
 
-            if (author == null) author = undefined
-            if (pullRequestNumber == null) pullRequestNumber = undefined
+            if (author == null) {
+                author = undefined
+            }
+            if (pullRequestNumber == null) {
+                pullRequestNumber = undefined
+            }
 
             const alreadyCreatedChangeLogItem = changeLogItems.find(item =>
                 item.message === message && item.author === author,
@@ -223,8 +231,8 @@ async function run(): Promise<void> {
                         alreadyCreatedChangeLogItem.pullRequestNumbers.push(pullRequestNumber)
                     }
                 }
-                if (!alreadyCreatedChangeLogItem.commits.includes(commit.sha)) {
-                    alreadyCreatedChangeLogItem.commits.push(commit.sha)
+                if (!alreadyCreatedChangeLogItem.commits.some(it => it.sha === commit.sha)) {
+                    alreadyCreatedChangeLogItem.commits.push(commit)
                 }
                 if (alreadyCreatedChangeLogItem.type == null) {
                     alreadyCreatedChangeLogItem.type = type
@@ -234,7 +242,7 @@ async function run(): Promise<void> {
                     message,
                     author: author ?? undefined,
                     pullRequestNumbers: pullRequestNumber != null ? [pullRequestNumber] : [],
-                    commits: [commit.sha],
+                    commits: [commit],
                     type,
                 })
             }
@@ -257,6 +265,8 @@ async function run(): Promise<void> {
                             || dependencyUpdatesAuthors.includes(pullRequestAssociatedWithCommit.user?.login ?? '')
                         ) {
                             type = 'dependency'
+                        } else if (hasNotEmptyIntersection(labels, miscPullRequestLabels)) {
+                            type = 'misc'
                         }
                         addChangelogItem(
                             commit,
@@ -322,7 +332,21 @@ async function run(): Promise<void> {
                 if (changeLogItem.pullRequestNumbers.length) {
                     tokens.push(`(#${changeLogItem.pullRequestNumbers.join(', #')})`)
                 } else {
-                    tokens.push(`(${changeLogItem.commits.join(', ')})`)
+                    const commitHashes = changeLogItem.commits
+                        .map(it => it.sha)
+                        .filter(onlyUnique)
+                    if (commitHashes.length) {
+                        tokens.push(`(${commitHashes.join(', ')})`)
+                    }
+                    const commitAuthors = changeLogItem.commits
+                        .map(it => it.author?.login)
+                        .filter(it => it?.length)
+                        .map(it => it!.replace(/\[bot\]$/, ''))
+                        .map(it => `@${it}`)
+                        .filter(onlyUnique)
+                    if (commitAuthors.length) {
+                        tokens.push(`${commitAuthors.join(', ')}`)
+                    }
                 }
 
                 if (changeLogItem.author != null) {
@@ -334,6 +358,7 @@ async function run(): Promise<void> {
 
             const typeTitles: Record<ChangeLogItemType, string> = {
                 'dependency': '📦 Dependency updates',
+                'misc': '🧹 Misc',
             }
 
             releaseDescriptionLines.push('')

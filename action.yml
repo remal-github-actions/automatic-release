@@ -38,6 +38,9 @@ inputs:
     required: false
     default: 'dependabot[bot], renovate[bot]'
     description: Authors of Pull Requests that update dependencies (i.e. PRs from tools like Dependabot, Renovate, etc)
+  miscPullRequestLabels:
+    required: false
+    description: Labels of misc Pull Requests that update dependencies
   actionPathsAllowedToFail:
     required: false
     description: Paths of GitHub actions are that are allowed to fail

@@ -2,7 +2,6 @@ import type { components } from '@octokit/openapi-types'
 import { Version } from './Version.js'
 
 export type Repo = components['schemas']['full-repository']
-export type CommitSha = string
 export type CheckRun = components['schemas']['check-run']
 export type CheckSuite = components['schemas']['check-suite']
 export type CommitComparison = components['schemas']['commit-comparison']
@@ -30,12 +29,12 @@ export interface CommitPullRequest {
     pullRequest: PullRequestSimple
 }
 
-export type ChangeLogItemType = 'dependency'
+export type ChangeLogItemType = 'dependency' | 'misc'
 
 export interface ChangeLogItem {
     message: string
     author?: string
     pullRequestNumbers: number[]
-    commits: CommitSha[]
+    commits: Commit[]
     type?: ChangeLogItemType
 }
