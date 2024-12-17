@@ -358,7 +358,7 @@ async function run(): Promise<void> {
 
             const typeTitles: Record<ChangeLogItemType, string> = {
                 'dependency': '📦 Dependency updates',
-                'misc': '🧹 Misc',
+                'misc': '🛠️ Misc',
             }
 
             releaseDescriptionLines.push('')
