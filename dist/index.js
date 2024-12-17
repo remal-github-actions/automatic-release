@@ -40723,7 +40723,7 @@ async function run() {
             }
             const typeTitles = {
                 'dependency': '📦 Dependency updates',
-                'misc': '🧹 Misc',
+                'misc': '🛠️ Misc',
             };
             releaseDescriptionLines.push('');
             releaseDescriptionLines.push('# What\'s Changed');
