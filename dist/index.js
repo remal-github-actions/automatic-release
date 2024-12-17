@@ -40411,6 +40411,22 @@ function hasNotEmptyIntersection(array1, array2) {
     }
     return true;
 }
+function onlyUnique(value, index, array) {
+    return array.indexOf(value) === index;
+}
+function onlyUniqueBy(extractor) {
+    const seen = new Set();
+    return (value) => {
+        const extracted = extractor(value);
+        if (seen.has(extracted)) {
+            return false;
+        }
+        else {
+            seen.add(extracted);
+            return true;
+        }
+    };
+}
 
 ;// CONCATENATED MODULE: ./build/main.js
 
@@ -40458,25 +40474,27 @@ const dependencyUpdatesAuthors = core.getInput('dependencyUpdatesAuthors', { req
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
     .filter(it => it.length);
+const miscPullRequestLabels = core.getInput('miscPullRequestLabels', { required: false })
+    .split(/[\n\r,;]+/)
+    .map(it => it.trim())
+    .filter(it => it.length);
 const versionIncrementMode = core.getInput('versionIncrementMode', { required: true }).toLowerCase();
 const actionPathsAllowedToFail = core.getInput('actionPathsAllowedToFail', { required: false })
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
     .filter(it => it.length);
 const dryRun = core.getInput('dryRun', { required: true }).toLowerCase() === 'true';
+[
+    dependencyUpdatesPullRequestLabels,
+    miscPullRequestLabels,
+].flat().forEach(label => {
+    if (!allowedPullRequestLabels.includes(label)) {
+        allowedPullRequestLabels.push(label);
+    }
+});
 const octokit = newOctokitInstance(githubToken);
 async function run() {
     try {
-        await core.group('Parameters', async () => {
-            core.info(`versionTagPrefix: ${versionTagPrefix}`);
-            core.info(`allowedVersionTagPrefixes:\n  ${allowedVersionTagPrefixes.join('\n  ')}`);
-            core.info(`expectedFilesToChange:\n  ${expectedFilesToChange.join('\n  ')}`);
-            core.info(`allowedCommitPrefixes:\n  ${allowedCommitPrefixes.join('\n  ')}`);
-            core.info(`allowedPullRequestLabels:\n  ${allowedPullRequestLabels.join('\n  ')}`);
-            core.info(`skippedChangelogCommitPrefixes:\n  ${skippedChangelogCommitPrefixes.join('\n  ')}`);
-            core.info(`versionIncrementMode: ${versionIncrementMode}`);
-            core.info(`dryRun: ${dryRun}`);
-        });
         const repo = await retrieveRepo(octokit);
         const lastVersionTag = await retrieveLastVersionTag(octokit, allowedVersionTagPrefixes);
         if (lastVersionTag == null) {
@@ -40574,8 +40592,9 @@ async function run() {
         const changeLogItems = [];
         function addChangelogItem(commit, type, message, originalMessage, author = undefined, pullRequestNumber = undefined) {
             message = message.trim();
-            if (!message.length)
+            if (!message.length) {
                 return;
+            }
             for (const skippedChangelogCommitPrefix of skippedChangelogCommitPrefixes) {
                 if (originalMessage.startsWith(skippedChangelogCommitPrefix)) {
                     const messageAfterPrefix = originalMessage.substring(skippedChangelogCommitPrefix.length);
@@ -40587,10 +40606,12 @@ async function run() {
                     }
                 }
             }
-            if (author == null)
+            if (author == null) {
                 author = undefined;
-            if (pullRequestNumber == null)
+            }
+            if (pullRequestNumber == null) {
                 pullRequestNumber = undefined;
+            }
             const alreadyCreatedChangeLogItem = changeLogItems.find(item => item.message === message && item.author === author);
             if (alreadyCreatedChangeLogItem != null) {
                 if (pullRequestNumber != null) {
@@ -40598,8 +40619,8 @@ async function run() {
                         alreadyCreatedChangeLogItem.pullRequestNumbers.push(pullRequestNumber);
                     }
                 }
-                if (!alreadyCreatedChangeLogItem.commits.includes(commit.sha)) {
-                    alreadyCreatedChangeLogItem.commits.push(commit.sha);
+                if (!alreadyCreatedChangeLogItem.commits.some(it => it.sha === commit.sha)) {
+                    alreadyCreatedChangeLogItem.commits.push(commit);
                 }
                 if (alreadyCreatedChangeLogItem.type == null) {
                     alreadyCreatedChangeLogItem.type = type;
@@ -40610,7 +40631,7 @@ async function run() {
                     message,
                     author: author ?? undefined,
                     pullRequestNumbers: pullRequestNumber != null ? [pullRequestNumber] : [],
-                    commits: [commit.sha],
+                    commits: [commit],
                     type,
                 });
             }
@@ -40630,6 +40651,9 @@ async function run() {
                         if (hasNotEmptyIntersection(labels, dependencyUpdatesPullRequestLabels)
                             || dependencyUpdatesAuthors.includes(pullRequestAssociatedWithCommit.user?.login ?? '')) {
                             type = 'dependency';
+                        }
+                        else if (hasNotEmptyIntersection(labels, miscPullRequestLabels)) {
+                            type = 'misc';
                         }
                         addChangelogItem(commit, type, pullRequestAssociatedWithCommit.title, pullRequestAssociatedWithCommit.title, pullRequestAssociatedWithCommit.user?.login ?? undefined, pullRequestAssociatedWithCommit.number);
                         continue forEachCommit;
@@ -40676,7 +40700,21 @@ async function run() {
                     tokens.push(`(#${changeLogItem.pullRequestNumbers.join(', #')})`);
                 }
                 else {
-                    tokens.push(`(${changeLogItem.commits.join(', ')})`);
+                    const commitHashes = changeLogItem.commits
+                        .map(it => it.sha)
+                        .filter(onlyUnique);
+                    if (commitHashes.length) {
+                        tokens.push(`(${commitHashes.join(', ')})`);
+                    }
+                    const commitAuthors = changeLogItem.commits
+                        .map(it => it.author?.login)
+                        .filter(it => it?.length)
+                        .map(it => it.replace(/\[bot\]$/, ''))
+                        .map(it => `@${it}`)
+                        .filter(onlyUnique);
+                    if (commitAuthors.length) {
+                        tokens.push(`${commitAuthors.join(', ')}`);
+                    }
                 }
                 if (changeLogItem.author != null) {
                     tokens.push(`@${changeLogItem.author.replace(/\[bot\]$/, '')}`);
@@ -40685,6 +40723,7 @@ async function run() {
             }
             const typeTitles = {
                 'dependency': '📦 Dependency updates',
+                'misc': '🧹 Misc',
             };
             releaseDescriptionLines.push('');
             releaseDescriptionLines.push('# What\'s Changed');

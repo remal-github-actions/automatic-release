@@ -2,6 +2,7 @@ import type { components } from '@octokit/openapi-types'
 import { Version } from './Version.js'
 
 export type Repo = components['schemas']['full-repository']
+export type CommitSha = string
 export type CheckRun = components['schemas']['check-run']
 export type CheckSuite = components['schemas']['check-suite']
 export type CommitComparison = components['schemas']['commit-comparison']
