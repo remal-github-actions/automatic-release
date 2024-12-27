@@ -1,8 +1,5 @@
 export function hasNotEmptyIntersection<T>(array1: T[] | null | undefined, array2: T[] | null | undefined): boolean {
-    if (array1 == null || !array1.length) {
-        return false
-    }
-    if (array2 == null || !array2.length) {
+    if (!array1?.length || !array2?.length) {
         return false
     }
 
