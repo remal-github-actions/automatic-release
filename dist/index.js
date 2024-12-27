@@ -40398,10 +40398,7 @@ async function retrieveLastVersionTag(octokit, tagVersionPrefixes = []) {
 
 ;// CONCATENATED MODULE: ./build/internal/utils.js
 function hasNotEmptyIntersection(array1, array2) {
-    if (array1 == null || !array1.length) {
-        return false;
-    }
-    if (array2 == null || !array2.length) {
+    if (!array1?.length || !array2?.length) {
         return false;
     }
     for (const element1 of array1) {
@@ -40470,11 +40467,19 @@ const dependencyUpdatesPullRequestLabels = core.getInput('dependencyUpdatesPullR
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
     .filter(it => it.length);
+const dependencyUpdatesPullRequestExcludeLabels = core.getInput('dependencyUpdatesPullRequestExcludeLabels', { required: false })
+    .split(/[\n\r,;]+/)
+    .map(it => it.trim())
+    .filter(it => it.length);
 const dependencyUpdatesAuthors = core.getInput('dependencyUpdatesAuthors', { required: false })
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
     .filter(it => it.length);
 const miscPullRequestLabels = core.getInput('miscPullRequestLabels', { required: false })
+    .split(/[\n\r,;]+/)
+    .map(it => it.trim())
+    .filter(it => it.length);
+const miscPullRequestExcludeLabels = core.getInput('miscPullRequestExcludeLabels', { required: false })
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
     .filter(it => it.length);
@@ -40486,12 +40491,10 @@ const actionPathsAllowedToFail = core.getInput('actionPathsAllowedToFail', { req
 const dryRun = core.getInput('dryRun', { required: true }).toLowerCase() === 'true';
 [
     dependencyUpdatesPullRequestLabels,
+    dependencyUpdatesPullRequestExcludeLabels,
     miscPullRequestLabels,
-].flat().forEach(label => {
-    if (!allowedPullRequestLabels.includes(label)) {
-        allowedPullRequestLabels.push(label);
-    }
-});
+    miscPullRequestExcludeLabels,
+].flat().forEach(label => allowedPullRequestLabels.push(label));
 const octokit = newOctokitInstance(githubToken);
 async function run() {
     try {
@@ -40648,11 +40651,13 @@ async function run() {
                     if (labels.includes(allowedPullRequestLabel)) {
                         core.info(`Allowed commit by Pull Request label ('${allowedPullRequestLabel}'): ${message}: ${pullRequestAssociatedWithCommit.html_url}`);
                         let type = undefined;
-                        if (hasNotEmptyIntersection(labels, dependencyUpdatesPullRequestLabels)
-                            || dependencyUpdatesAuthors.includes(pullRequestAssociatedWithCommit.user?.login ?? '')) {
+                        if (!hasNotEmptyIntersection(labels, dependencyUpdatesPullRequestExcludeLabels)
+                            && (hasNotEmptyIntersection(labels, dependencyUpdatesPullRequestLabels)
+                                || dependencyUpdatesAuthors.includes(pullRequestAssociatedWithCommit.user?.login ?? ''))) {
                             type = 'dependency';
                         }
-                        else if (hasNotEmptyIntersection(labels, miscPullRequestLabels)) {
+                        else if (!hasNotEmptyIntersection(labels, miscPullRequestExcludeLabels)
+                            && hasNotEmptyIntersection(labels, miscPullRequestLabels)) {
                             type = 'misc';
                         }
                         addChangelogItem(commit, type, pullRequestAssociatedWithCommit.title, pullRequestAssociatedWithCommit.title, pullRequestAssociatedWithCommit.user?.login ?? undefined, pullRequestAssociatedWithCommit.number);
