@@ -40467,19 +40467,11 @@ const dependencyUpdatesPullRequestLabels = core.getInput('dependencyUpdatesPullR
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
     .filter(it => it.length);
-const dependencyUpdatesPullRequestExcludeLabels = core.getInput('dependencyUpdatesPullRequestExcludeLabels', { required: false })
-    .split(/[\n\r,;]+/)
-    .map(it => it.trim())
-    .filter(it => it.length);
 const dependencyUpdatesAuthors = core.getInput('dependencyUpdatesAuthors', { required: false })
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
     .filter(it => it.length);
 const miscPullRequestLabels = core.getInput('miscPullRequestLabels', { required: false })
-    .split(/[\n\r,;]+/)
-    .map(it => it.trim())
-    .filter(it => it.length);
-const miscPullRequestExcludeLabels = core.getInput('miscPullRequestExcludeLabels', { required: false })
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
     .filter(it => it.length);
@@ -40491,9 +40483,7 @@ const actionPathsAllowedToFail = core.getInput('actionPathsAllowedToFail', { req
 const dryRun = core.getInput('dryRun', { required: true }).toLowerCase() === 'true';
 [
     dependencyUpdatesPullRequestLabels,
-    dependencyUpdatesPullRequestExcludeLabels,
     miscPullRequestLabels,
-    miscPullRequestExcludeLabels,
 ].flat().forEach(label => allowedPullRequestLabels.push(label));
 const octokit = newOctokitInstance(githubToken);
 async function run() {
@@ -40651,14 +40641,12 @@ async function run() {
                     if (labels.includes(allowedPullRequestLabel)) {
                         core.info(`Allowed commit by Pull Request label ('${allowedPullRequestLabel}'): ${message}: ${pullRequestAssociatedWithCommit.html_url}`);
                         let type = undefined;
-                        if (!hasNotEmptyIntersection(labels, dependencyUpdatesPullRequestExcludeLabels)
-                            && (hasNotEmptyIntersection(labels, dependencyUpdatesPullRequestLabels)
-                                || dependencyUpdatesAuthors.includes(pullRequestAssociatedWithCommit.user?.login ?? ''))) {
-                            type = 'dependency';
-                        }
-                        else if (!hasNotEmptyIntersection(labels, miscPullRequestExcludeLabels)
-                            && hasNotEmptyIntersection(labels, miscPullRequestLabels)) {
+                        if (hasNotEmptyIntersection(labels, miscPullRequestLabels)) {
                             type = 'misc';
+                        }
+                        else if (hasNotEmptyIntersection(labels, dependencyUpdatesPullRequestLabels)
+                            || dependencyUpdatesAuthors.includes(pullRequestAssociatedWithCommit.user?.login ?? '')) {
+                            type = 'dependency';
                         }
                         addChangelogItem(commit, type, pullRequestAssociatedWithCommit.title, pullRequestAssociatedWithCommit.title, pullRequestAssociatedWithCommit.user?.login ?? undefined, pullRequestAssociatedWithCommit.number);
                         continue forEachCommit;
