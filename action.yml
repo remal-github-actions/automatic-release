@@ -34,9 +34,6 @@ inputs:
   dependencyUpdatesPullRequestLabels:
     required: false
     description: Labels of Pull Requests that update dependencies (i.e. PRs from tools like Dependabot, Renovate, etc)
-  dependencyUpdatesPullRequestExcludeLabels:
-    required: false
-    description: Labels of Pull Requests that do NOT update dependencies
   dependencyUpdatesAuthors:
     required: false
     default: 'dependabot[bot], renovate[bot]'
@@ -44,9 +41,6 @@ inputs:
   miscPullRequestLabels:
     required: false
     description: Labels of misc Pull Requests that update dependencies
-  miscPullRequestExcludeLabels:
-    required: false
-    description: Labels of NOT misc Pull Requests that update dependencies
   actionPathsAllowedToFail:
     required: false
     description: Paths of GitHub actions are that are allowed to fail
