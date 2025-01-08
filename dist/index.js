@@ -40446,7 +40446,6 @@ const allowedVersionTagPrefixes = core.getInput('allowedVersionTagPrefixes', { r
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
     .filter(it => it.length);
-allowedVersionTagPrefixes.push(versionTagPrefix);
 const expectedFilesToChange = core.getInput('expectedFilesToChange', { required: false })
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
@@ -40481,6 +40480,7 @@ const actionPathsAllowedToFail = core.getInput('actionPathsAllowedToFail', { req
     .map(it => it.trim())
     .filter(it => it.length);
 const dryRun = core.getInput('dryRun', { required: true }).toLowerCase() === 'true';
+allowedVersionTagPrefixes.push(versionTagPrefix);
 [
     dependencyUpdatesPullRequestLabels,
     miscPullRequestLabels,
@@ -40683,7 +40683,8 @@ async function run() {
         }
         const releaseVersion = incrementVersion(lastVersionTag.version, versionIncrementMode);
         const releaseTag = `${versionTagPrefix}${releaseVersion}`;
-        const releaseDescriptionLines = ['_Automatic release_'];
+        const releaseDescriptionLines = [];
+        releaseDescriptionLines.push(`_[Automatic release](${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.repo}/actions/runs/${github.context.runId})_`);
         if (changeLogItems.length) {
             function appendChangeLogItemToReleaseDescriptionLines(changeLogItem) {
                 const tokens = [
@@ -40749,7 +40750,7 @@ async function run() {
         core.info(`Created release: ${createdRelease.html_url}`);
     }
     catch (error) {
-        core.setFailed(error instanceof Error ? error : error.toString());
+        core.setFailed(error instanceof Error ? error : `${error}`);
         throw error;
     }
 }
