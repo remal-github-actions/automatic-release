@@ -40639,7 +40639,8 @@ async function run() {
                 const labels = pullRequestAssociatedWithCommit.labels.map(it => it.name);
                 for (const allowedPullRequestLabel of allowedPullRequestLabels) {
                     if (labels.includes(allowedPullRequestLabel)) {
-                        core.info(`Allowed commit by Pull Request label ('${allowedPullRequestLabel}'): ${message}: ${pullRequestAssociatedWithCommit.html_url}`);
+                        core.info(`Allowed commit by Pull Request label ('${allowedPullRequestLabel}'): ${message}: ${pullRequestAssociatedWithCommit.html_url}`
+                            + ` (all labels: \`${labels.join('`, `')}\`)`);
                         let type = undefined;
                         if (hasNotEmptyIntersection(labels, miscPullRequestLabels)) {
                             type = 'misc';
