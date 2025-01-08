@@ -18,11 +18,11 @@ import { hasNotEmptyIntersection, onlyUnique } from './internal/utils.js'
 const githubToken = core.getInput('githubToken', { required: true })
 const failOnNotAllowedCommits = core.getInput('failOnNotAllowedCommits', { required: true }).toLowerCase() === 'true'
 const versionTagPrefix = core.getInput('versionTagPrefix', { required: false })
-const allowedVersionTagPrefixes = core.getInput('allowedVersionTagPrefixes', { required: false })
-    .split(/[\n\r,;]+/)
-    .map(it => it.trim())
-    .filter(it => it.length)
-allowedVersionTagPrefixes.push(versionTagPrefix)
+const allowedVersionTagPrefixes =
+    core.getInput('allowedVersionTagPrefixes', { required: false })
+        .split(/[\n\r,;]+/)
+        .map(it => it.trim())
+        .filter(it => it.length)
 const expectedFilesToChange =
     core.getInput('expectedFilesToChange', { required: false })
         .split(/[\n\r,;]+/)
@@ -66,6 +66,8 @@ const actionPathsAllowedToFail =
         .map(it => it.trim())
         .filter(it => it.length)
 const dryRun = core.getInput('dryRun', { required: true }).toLowerCase() === 'true'
+
+allowedVersionTagPrefixes.push(versionTagPrefix)
 
 ;[
     dependencyUpdatesPullRequestLabels,
@@ -325,7 +327,8 @@ async function run(): Promise<void> {
 
         const releaseTag = `${versionTagPrefix}${releaseVersion}`
 
-        const releaseDescriptionLines: string[] = ['_Automatic release_']
+        const releaseDescriptionLines: string[] = []
+        releaseDescriptionLines.push(`_[Automatic release](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})_`)
         if (changeLogItems.length) {
             function appendChangeLogItemToReleaseDescriptionLines(changeLogItem: ChangeLogItem) {
                 const tokens = [
@@ -410,7 +413,7 @@ async function run(): Promise<void> {
 
 
     } catch (error) {
-        core.setFailed(error instanceof Error ? error : (error as object).toString())
+        core.setFailed(error instanceof Error ? error : `${error}`)
         throw error
     }
 }
