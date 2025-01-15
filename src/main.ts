@@ -404,7 +404,7 @@ async function run(): Promise<void> {
         const description = releaseDescription.length
             ? `description:\n  ${releaseDescription.split('\n').join('\n  ')}`
             : `empty description`
-        core.info(`Creating a new release '${releaseVersion}' with Git tag: '${releaseTag}', and with ${description}`)
+        core.info(`Creating a new release '${releaseVersion}' with Git tag '${releaseTag}' and with ${description}`)
 
         if (dryRun) {
             core.warning(`Skipping release creation, as dry run is enabled`)
