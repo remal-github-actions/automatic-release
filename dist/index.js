@@ -40963,6 +40963,14 @@ async function run() {
         }
         const changeLogItems = [];
         function addChangelogItem(commit, type, message, originalMessage, author = undefined, pullRequestNumber = undefined) {
+            core.info(`Registering changelog item: ` + [
+                `commit='${commit.sha}'`,
+                `type='${type}'`,
+                `message='${message}'`,
+                `originalMessage='${originalMessage}'`,
+                `author='${author}'`,
+                `pullRequestNumber='${pullRequestNumber}'`,
+            ].join(', '));
             message = message.trim();
             if (!message.length) {
                 return;
@@ -41120,7 +41128,7 @@ async function run() {
         const description = releaseDescription.length
             ? `description:\n  ${releaseDescription.split('\n').join('\n  ')}`
             : `empty description`;
-        core.info(`Creating a new release '${releaseVersion}' with Git tag: '${releaseTag}', and with ${description}`);
+        core.info(`Creating a new release '${releaseVersion}' with Git tag '${releaseTag}' and with ${description}`);
         if (dryRun) {
             core.warning(`Skipping release creation, as dry run is enabled`);
             return;
