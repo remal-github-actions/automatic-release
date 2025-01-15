@@ -201,6 +201,15 @@ async function run(): Promise<void> {
             author: string | null | undefined = undefined,
             pullRequestNumber: number | null | undefined = undefined,
         ) {
+            core.info(`Registering changelog item: ` + [
+                `commit='${commit.sha}'`,
+                `type='${type}'`,
+                `message='${message}'`,
+                `originalMessage='${originalMessage}'`,
+                `author='${author}'`,
+                `pullRequestNumber='${pullRequestNumber}'`,
+            ].join(', '))
+
             message = message.trim()
             if (!message.length) {
                 return
