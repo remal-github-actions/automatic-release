@@ -40858,7 +40858,7 @@ const actionPathsAllowedToFail = core.getInput('actionPathsAllowedToFail', { req
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
     .filter(it => it.length);
-const dryRun = core.getInput('dryRun', { required: true }).toLowerCase() === 'true';
+const dryRun = core.getInput('dryRun', { required: false }).toLowerCase() === 'true';
 allowedVersionTagPrefixes.push(versionTagPrefix);
 [
     dependencyUpdatesPullRequestLabels,
