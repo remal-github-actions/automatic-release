@@ -4,12 +4,12 @@ export function hasNotEmptyIntersection<T>(array1: T[] | null | undefined, array
     }
 
     for (const element1 of array1) {
-        if (!array2.includes(element1)) {
-            return false
+        if (array2.includes(element1)) {
+            return true
         }
     }
 
-    return true
+    return false
 }
 
 export function onlyUnique(value: any, index: number, array: Array<any>): boolean {

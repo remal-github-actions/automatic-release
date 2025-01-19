@@ -291,6 +291,8 @@ async function run(): Promise<void> {
                             + ` (all labels: \`${labels.join('`, `')}\`)`,
                         )
                         let type: ChangeLogItemType | undefined = undefined
+                        core.info(`  labels=\`${labels.join('`, `')}\``)
+                        core.info(`  miscPullRequestLabels=\`${miscPullRequestLabels.join('`, `')}\``)
                         if (hasNotEmptyIntersection(labels, miscPullRequestLabels)) {
                             type = 'misc'
                         } else if (hasNotEmptyIntersection(labels, dependencyUpdatesPullRequestLabels)
