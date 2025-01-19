@@ -40867,23 +40867,23 @@ allowedVersionTagPrefixes.push(versionTagPrefix);
 const octokit = newOctokitInstance(githubToken);
 async function run() {
     try {
-        core.info(`failOnNotAllowedCommits=\`${failOnNotAllowedCommits}\``);
-        core.info(`versionTagPrefix=\`${versionTagPrefix}\``);
-        core.info(`allowedVersionTagPrefixes=\`${allowedVersionTagPrefixes.join('`, `')}\``);
-        core.info(`expectedFilesToChange=\`${expectedFilesToChange.join('`, `')}\``);
-        core.info(`allowedCommitPrefixes=\`${allowedCommitPrefixes.join('`, `')}\``);
-        core.info(`allowedPullRequestLabels=\`${allowedPullRequestLabels.join('`, `')}\``);
-        core.info(`skippedChangelogCommitPrefixes=\`${skippedChangelogCommitPrefixes.join('`, `')}\``);
-        core.info(`dependencyUpdatesPullRequestLabels=\`${dependencyUpdatesPullRequestLabels.join('`, `')}\``);
-        core.info(`dependencyUpdatesAuthors=\`${dependencyUpdatesAuthors.join('`, `')}\``);
-        core.info(`miscPullRequestLabels=\`${miscPullRequestLabels.join('`, `')}\``);
-        core.info(`versionIncrementMode=\`${versionIncrementMode}\``);
-        core.info(`actionPathsAllowedToFail=\`${actionPathsAllowedToFail.join('`, `')}\``);
-        core.info(`dryRun=\`${dryRun}\``);
+        core.debug(`failOnNotAllowedCommits=\`${failOnNotAllowedCommits}\``);
+        core.debug(`versionTagPrefix=\`${versionTagPrefix}\``);
+        core.debug(`allowedVersionTagPrefixes=\`${allowedVersionTagPrefixes.join('`, `')}\``);
+        core.debug(`expectedFilesToChange=\`${expectedFilesToChange.join('`, `')}\``);
+        core.debug(`allowedCommitPrefixes=\`${allowedCommitPrefixes.join('`, `')}\``);
+        core.debug(`allowedPullRequestLabels=\`${allowedPullRequestLabels.join('`, `')}\``);
+        core.debug(`skippedChangelogCommitPrefixes=\`${skippedChangelogCommitPrefixes.join('`, `')}\``);
+        core.debug(`dependencyUpdatesPullRequestLabels=\`${dependencyUpdatesPullRequestLabels.join('`, `')}\``);
+        core.debug(`dependencyUpdatesAuthors=\`${dependencyUpdatesAuthors.join('`, `')}\``);
+        core.debug(`miscPullRequestLabels=\`${miscPullRequestLabels.join('`, `')}\``);
+        core.debug(`versionIncrementMode=\`${versionIncrementMode}\``);
+        core.debug(`actionPathsAllowedToFail=\`${actionPathsAllowedToFail.join('`, `')}\``);
+        core.debug(`dryRun=\`${dryRun}\``);
         const repo = await retrieveRepo(octokit);
         const lastVersionTag = await retrieveLastVersionTag(octokit, allowedVersionTagPrefixes);
         if (lastVersionTag == null) {
-            core.info(`Skipping release creation, as no version tags found for repository ${repo.html_url}`);
+            core.warning(`Skipping release creation, as no version tags found for repository ${repo.html_url}`);
             return;
         }
         core.info(`Last version: '${lastVersionTag.version}', tag: ${repo.html_url}/releases/tag/${lastVersionTag.tag.name}`);
@@ -41042,8 +41042,6 @@ async function run() {
                         core.info(`Allowed commit by Pull Request label ('${allowedPullRequestLabel}'): ${message}: ${pullRequestAssociatedWithCommit.html_url}`
                             + ` (all labels: \`${labels.join('`, `')}\`)`);
                         let type = undefined;
-                        core.info(`  labels=\`${labels.join('`, `')}\``);
-                        core.info(`  miscPullRequestLabels=\`${miscPullRequestLabels.join('`, `')}\``);
                         if (hasNotEmptyIntersection(labels, miscPullRequestLabels)) {
                             type = 'misc';
                         }
