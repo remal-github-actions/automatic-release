@@ -80,6 +80,21 @@ const octokit = newOctokitInstance(githubToken)
 
 async function run(): Promise<void> {
     try {
+        core.info(`failOnNotAllowedCommits=\`${failOnNotAllowedCommits}\``)
+        core.info(`versionTagPrefix=\`${versionTagPrefix}\``)
+        core.info(`allowedVersionTagPrefixes=\`${allowedVersionTagPrefixes.join('`, `')}\``)
+        core.info(`expectedFilesToChange=\`${expectedFilesToChange.join('`, `')}\``)
+        core.info(`allowedCommitPrefixes=\`${allowedCommitPrefixes.join('`, `')}\``)
+        core.info(`allowedPullRequestLabels=\`${allowedPullRequestLabels.join('`, `')}\``)
+        core.info(`skippedChangelogCommitPrefixes=\`${skippedChangelogCommitPrefixes.join('`, `')}\``)
+        core.info(`dependencyUpdatesPullRequestLabels=\`${dependencyUpdatesPullRequestLabels.join('`, `')}\``)
+        core.info(`dependencyUpdatesAuthors=\`${dependencyUpdatesAuthors.join('`, `')}\``)
+        core.info(`miscPullRequestLabels=\`${miscPullRequestLabels.join('`, `')}\``)
+        core.info(`versionIncrementMode=\`${versionIncrementMode}\``)
+        core.info(`actionPathsAllowedToFail=\`${actionPathsAllowedToFail.join('`, `')}\``)
+        core.info(`dryRun=\`${dryRun}\``)
+
+
         const repo = await retrieveRepo(octokit)
 
         const lastVersionTag = await retrieveLastVersionTag(octokit, allowedVersionTagPrefixes)
