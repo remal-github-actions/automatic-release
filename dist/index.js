@@ -40781,11 +40781,11 @@ function hasNotEmptyIntersection(array1, array2) {
         return false;
     }
     for (const element1 of array1) {
-        if (!array2.includes(element1)) {
-            return false;
+        if (array2.includes(element1)) {
+            return true;
         }
     }
-    return true;
+    return false;
 }
 function onlyUnique(value, index, array) {
     return array.indexOf(value) === index;
@@ -41042,6 +41042,8 @@ async function run() {
                         core.info(`Allowed commit by Pull Request label ('${allowedPullRequestLabel}'): ${message}: ${pullRequestAssociatedWithCommit.html_url}`
                             + ` (all labels: \`${labels.join('`, `')}\`)`);
                         let type = undefined;
+                        core.info(`  labels=\`${labels.join('`, `')}\``);
+                        core.info(`  miscPullRequestLabels=\`${miscPullRequestLabels.join('`, `')}\``);
                         if (hasNotEmptyIntersection(labels, miscPullRequestLabels)) {
                             type = 'misc';
                         }
