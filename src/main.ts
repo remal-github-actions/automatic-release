@@ -201,7 +201,7 @@ async function run(): Promise<void> {
             author: string | null | undefined = undefined,
             pullRequestNumber: number | null | undefined = undefined,
         ) {
-            core.info(`Registering changelog item: ` + [
+            core.info(`  Registering changelog item: ` + [
                 `commit='${commit.sha}'`,
                 `type='${type}'`,
                 `message='${message}'`,
@@ -222,7 +222,7 @@ async function run(): Promise<void> {
                         || messageAfterPrefix.match(/^\W/)
                         || skippedChangelogCommitPrefix.match(/\W$/)
                     ) {
-                        core.info(`Excluding changelog message by prefix '${skippedChangelogCommitPrefix}': ${originalMessage}`)
+                        core.info(`  Excluding changelog message by prefix '${skippedChangelogCommitPrefix}': ${originalMessage}`)
                         return
                     }
                 }
