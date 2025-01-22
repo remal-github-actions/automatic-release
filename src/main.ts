@@ -347,72 +347,76 @@ async function run(): Promise<void> {
         }
 
 
+        if (!changeLogItems.length) {
+            core.warning(`Skipping release creation, as no changelog items were collected`)
+            return
+        }
+
+
         const releaseVersion = incrementVersion(lastVersionTag.version, versionIncrementMode)
 
         const releaseTag = `${versionTagPrefix}${releaseVersion}`
 
         const releaseDescriptionLines: string[] = []
         releaseDescriptionLines.push(`_[Automatic release](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})_`)
-        if (changeLogItems.length) {
-            function appendChangeLogItemToReleaseDescriptionLines(changeLogItem: ChangeLogItem) {
-                const tokens = [
-                    '*',
-                    changeLogItem.message,
-                ]
 
-                if (changeLogItem.pullRequestNumbers.length) {
-                    tokens.push(`(#${changeLogItem.pullRequestNumbers.join(', #')})`)
-                } else {
-                    const commitHashes = changeLogItem.commits
-                        .map(it => it.sha)
-                        .filter(onlyUnique)
-                    if (commitHashes.length) {
-                        tokens.push(`(${commitHashes.join(', ')})`)
-                    }
-                    const commitAuthors = changeLogItem.commits
-                        .map(it => it.author?.login)
-                        .filter(it => it?.length)
-                        .map(it => it!.replace(/\[bot\]$/, ''))
-                        .map(it => `@${it}`)
-                        .filter(onlyUnique)
-                    if (commitAuthors.length) {
-                        tokens.push(`${commitAuthors.join(', ')}`)
-                    }
+        function appendChangeLogItemToReleaseDescriptionLines(changeLogItem: ChangeLogItem) {
+            const tokens = [
+                '*',
+                changeLogItem.message,
+            ]
+
+            if (changeLogItem.pullRequestNumbers.length) {
+                tokens.push(`(#${changeLogItem.pullRequestNumbers.join(', #')})`)
+            } else {
+                const commitHashes = changeLogItem.commits
+                    .map(it => it.sha)
+                    .filter(onlyUnique)
+                if (commitHashes.length) {
+                    tokens.push(`(${commitHashes.join(', ')})`)
                 }
-
-                if (changeLogItem.author != null) {
-                    tokens.push(`@${changeLogItem.author.replace(/\[bot\]$/, '')}`)
+                const commitAuthors = changeLogItem.commits
+                    .map(it => it.author?.login)
+                    .filter(it => it?.length)
+                    .map(it => it!.replace(/\[bot\]$/, ''))
+                    .map(it => `@${it}`)
+                    .filter(onlyUnique)
+                if (commitAuthors.length) {
+                    tokens.push(`${commitAuthors.join(', ')}`)
                 }
-
-                releaseDescriptionLines.push(tokens.join(' '))
             }
 
-            const typeTitles: Record<ChangeLogItemType, string> = {
-                'dependency': '📦 Dependency updates',
-                'misc': '🛠️ Misc',
+            if (changeLogItem.author != null) {
+                tokens.push(`@${changeLogItem.author.replace(/\[bot\]$/, '')}`)
             }
 
-            releaseDescriptionLines.push('')
-            releaseDescriptionLines.push('# What\'s Changed')
-            releaseDescriptionLines.push('')
-
-            changeLogItems
-                .filter(it => it.type == null || !(it.type in typeTitles))
-                .forEach(appendChangeLogItemToReleaseDescriptionLines)
-
-            Object.entries(typeTitles).forEach(([type, title]) => {
-                const currentChangeLogItems = changeLogItems
-                    .filter(it => it.type === type)
-                if (currentChangeLogItems.length) {
-                    releaseDescriptionLines.push('')
-                    releaseDescriptionLines.push(`## ${title}`)
-                    releaseDescriptionLines.push('')
-
-                    currentChangeLogItems.forEach(appendChangeLogItemToReleaseDescriptionLines)
-                }
-            })
-
+            releaseDescriptionLines.push(tokens.join(' '))
         }
+
+        const typeTitles: Record<ChangeLogItemType, string> = {
+            'dependency': '📦 Dependency updates',
+            'misc': '🛠️ Misc',
+        }
+
+        releaseDescriptionLines.push('')
+        releaseDescriptionLines.push('# What\'s Changed')
+        releaseDescriptionLines.push('')
+
+        changeLogItems
+            .filter(it => it.type == null || !(it.type in typeTitles))
+            .forEach(appendChangeLogItemToReleaseDescriptionLines)
+
+        Object.entries(typeTitles).forEach(([type, title]) => {
+            const currentChangeLogItems = changeLogItems
+                .filter(it => it.type === type)
+            if (currentChangeLogItems.length) {
+                releaseDescriptionLines.push('')
+                releaseDescriptionLines.push(`## ${title}`)
+                releaseDescriptionLines.push('')
+
+                currentChangeLogItems.forEach(appendChangeLogItemToReleaseDescriptionLines)
+            }
+        })
 
 
         const releaseDescription = releaseDescriptionLines.join('\n')
