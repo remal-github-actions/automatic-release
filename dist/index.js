@@ -41096,62 +41096,64 @@ async function run() {
                 return;
             }
         }
+        if (!changeLogItems.length) {
+            core.warning(`Skipping release creation, as no changelog items were collected`);
+            return;
+        }
         const releaseVersion = incrementVersion(lastVersionTag.version, versionIncrementMode);
         const releaseTag = `${versionTagPrefix}${releaseVersion}`;
         const releaseDescriptionLines = [];
         releaseDescriptionLines.push(`_[Automatic release](${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.repo}/actions/runs/${github.context.runId})_`);
-        if (changeLogItems.length) {
-            function appendChangeLogItemToReleaseDescriptionLines(changeLogItem) {
-                const tokens = [
-                    '*',
-                    changeLogItem.message,
-                ];
-                if (changeLogItem.pullRequestNumbers.length) {
-                    tokens.push(`(#${changeLogItem.pullRequestNumbers.join(', #')})`);
-                }
-                else {
-                    const commitHashes = changeLogItem.commits
-                        .map(it => it.sha)
-                        .filter(onlyUnique);
-                    if (commitHashes.length) {
-                        tokens.push(`(${commitHashes.join(', ')})`);
-                    }
-                    const commitAuthors = changeLogItem.commits
-                        .map(it => it.author?.login)
-                        .filter(it => it?.length)
-                        .map(it => it.replace(/\[bot\]$/, ''))
-                        .map(it => `@${it}`)
-                        .filter(onlyUnique);
-                    if (commitAuthors.length) {
-                        tokens.push(`${commitAuthors.join(', ')}`);
-                    }
-                }
-                if (changeLogItem.author != null) {
-                    tokens.push(`@${changeLogItem.author.replace(/\[bot\]$/, '')}`);
-                }
-                releaseDescriptionLines.push(tokens.join(' '));
+        function appendChangeLogItemToReleaseDescriptionLines(changeLogItem) {
+            const tokens = [
+                '*',
+                changeLogItem.message,
+            ];
+            if (changeLogItem.pullRequestNumbers.length) {
+                tokens.push(`(#${changeLogItem.pullRequestNumbers.join(', #')})`);
             }
-            const typeTitles = {
-                'dependency': '📦 Dependency updates',
-                'misc': '🛠️ Misc',
-            };
-            releaseDescriptionLines.push('');
-            releaseDescriptionLines.push('# What\'s Changed');
-            releaseDescriptionLines.push('');
-            changeLogItems
-                .filter(it => it.type == null || !(it.type in typeTitles))
-                .forEach(appendChangeLogItemToReleaseDescriptionLines);
-            Object.entries(typeTitles).forEach(([type, title]) => {
-                const currentChangeLogItems = changeLogItems
-                    .filter(it => it.type === type);
-                if (currentChangeLogItems.length) {
-                    releaseDescriptionLines.push('');
-                    releaseDescriptionLines.push(`## ${title}`);
-                    releaseDescriptionLines.push('');
-                    currentChangeLogItems.forEach(appendChangeLogItemToReleaseDescriptionLines);
+            else {
+                const commitHashes = changeLogItem.commits
+                    .map(it => it.sha)
+                    .filter(onlyUnique);
+                if (commitHashes.length) {
+                    tokens.push(`(${commitHashes.join(', ')})`);
                 }
-            });
+                const commitAuthors = changeLogItem.commits
+                    .map(it => it.author?.login)
+                    .filter(it => it?.length)
+                    .map(it => it.replace(/\[bot\]$/, ''))
+                    .map(it => `@${it}`)
+                    .filter(onlyUnique);
+                if (commitAuthors.length) {
+                    tokens.push(`${commitAuthors.join(', ')}`);
+                }
+            }
+            if (changeLogItem.author != null) {
+                tokens.push(`@${changeLogItem.author.replace(/\[bot\]$/, '')}`);
+            }
+            releaseDescriptionLines.push(tokens.join(' '));
         }
+        const typeTitles = {
+            'dependency': '📦 Dependency updates',
+            'misc': '🛠️ Misc',
+        };
+        releaseDescriptionLines.push('');
+        releaseDescriptionLines.push('# What\'s Changed');
+        releaseDescriptionLines.push('');
+        changeLogItems
+            .filter(it => it.type == null || !(it.type in typeTitles))
+            .forEach(appendChangeLogItemToReleaseDescriptionLines);
+        Object.entries(typeTitles).forEach(([type, title]) => {
+            const currentChangeLogItems = changeLogItems
+                .filter(it => it.type === type);
+            if (currentChangeLogItems.length) {
+                releaseDescriptionLines.push('');
+                releaseDescriptionLines.push(`## ${title}`);
+                releaseDescriptionLines.push('');
+                currentChangeLogItems.forEach(appendChangeLogItemToReleaseDescriptionLines);
+            }
+        });
         const releaseDescription = releaseDescriptionLines.join('\n');
         const description = releaseDescription.length
             ? `description:\n  ${releaseDescription.split('\n').join('\n  ')}`
