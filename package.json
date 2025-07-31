@@ -29,7 +29,7 @@
     "@types/console-log-level": "1.4.5",
     "@types/jest": "30.0.0",
     "@types/node": "20.19.9",
-    "@types/picomatch": "4.0.1",
+    "@types/picomatch": "4.0.2",
     "@types/semver": "^7",
     "@vercel/ncc": "0.38.3",
     "eslint": "8.57.1",
