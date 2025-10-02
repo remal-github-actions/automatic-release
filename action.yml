@@ -23,6 +23,9 @@ inputs:
   expectedFilesToChange:
     required: false
     description: One of these files should be changed to make a new release. Glob syntax is supported.
+  ignoreExpectedFilesToChange:
+    required: false
+    description: Set to `true` to ignore `expectedFilesToChange`.
   allowedCommitPrefixes:
     required: false
     description: Allowed commit messages prefixes
