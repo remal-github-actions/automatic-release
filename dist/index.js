@@ -40664,6 +40664,7 @@ const expectedFilesToChange = core.getInput('expectedFilesToChange', { required:
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
     .filter(it => it.length);
+const ignoreExpectedFilesToChange = core.getInput('ignoreExpectedFilesToChange', { required: true }).toLowerCase() === 'true';
 const allowedCommitPrefixes = core.getInput('allowedCommitPrefixes', { required: false })
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
@@ -40706,6 +40707,7 @@ async function run() {
         core.debug(`versionTagPrefix=\`${versionTagPrefix}\``);
         core.debug(`allowedVersionTagPrefixes=\`${allowedVersionTagPrefixes.join('`, `')}\``);
         core.debug(`expectedFilesToChange=\`${expectedFilesToChange.join('`, `')}\``);
+        core.debug(`ignoreExpectedFilesToChange=\`${ignoreExpectedFilesToChange}\``);
         core.debug(`allowedCommitPrefixes=\`${allowedCommitPrefixes.join('`, `')}\``);
         core.debug(`allowedPullRequestLabels=\`${allowedPullRequestLabels.join('`, `')}\``);
         core.debug(`skippedChangelogCommitPrefixes=\`${skippedChangelogCommitPrefixes.join('`, `')}\``);
@@ -40733,19 +40735,21 @@ async function run() {
             core.info(`No commits found after last version tag: ${commitComparison.html_url}`);
             return;
         }
-        const commitComparisonFiles = commitComparison.files;
-        if (expectedFilesToChange.length && commitComparisonFiles != null) {
-            const expectedFilesToChangeMatcher = picomatch(expectedFilesToChange);
-            let areExpectedFilesChanged = false;
-            for (const commitComparisonFile of commitComparisonFiles) {
-                if (expectedFilesToChangeMatcher(commitComparisonFile.filename)) {
-                    areExpectedFilesChanged = true;
-                    core.info(`Expected file was changed: ${commitComparisonFile.blob_url}`);
+        if (!ignoreExpectedFilesToChange) {
+            const commitComparisonFiles = commitComparison.files;
+            if (expectedFilesToChange.length && commitComparisonFiles != null) {
+                const expectedFilesToChangeMatcher = picomatch(expectedFilesToChange);
+                let areExpectedFilesChanged = false;
+                for (const commitComparisonFile of commitComparisonFiles) {
+                    if (expectedFilesToChangeMatcher(commitComparisonFile.filename)) {
+                        areExpectedFilesChanged = true;
+                        core.info(`Expected file was changed: ${commitComparisonFile.blob_url}`);
+                    }
                 }
-            }
-            if (!areExpectedFilesChanged) {
-                core.info(`No expected files were changed:\n  ${expectedFilesToChange.join('\n  ')}`);
-                return;
+                if (!areExpectedFilesChanged) {
+                    core.info(`No expected files were changed:\n  ${expectedFilesToChange.join('\n  ')}`);
+                    return;
+                }
             }
         }
         const checkRuns = await retrieveCheckRuns(octokit, defaultBranch.commit.sha);
