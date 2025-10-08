@@ -29,7 +29,7 @@ const expectedFilesToChange =
         .map(it => it.trim())
         .filter(it => it.length)
 const ignoreExpectedFilesToChange =
-    core.getInput('ignoreExpectedFilesToChange', { required: true }).toLowerCase() === 'true'
+    core.getInput('ignoreExpectedFilesToChange', { required: false }).toLowerCase() === 'true'
 const allowedCommitPrefixes =
     core.getInput('allowedCommitPrefixes', { required: false })
         .split(/[\n\r,;]+/)
