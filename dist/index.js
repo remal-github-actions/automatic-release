@@ -40798,7 +40798,7 @@ async function run() {
                         const actionRun = await octokit.actions.getWorkflowRun({
                             owner: github.context.repo.owner,
                             repo: github.context.repo.repo,
-                            run_id: parseInt(actionRunId),
+                            run_id: Number.parseInt(actionRunId),
                         }).then(it => it.data);
                         const actor = actionRun.actor?.login ?? '';
                         if (checkActorsAllowedToFail.includes(actor)) {
@@ -40854,12 +40854,8 @@ async function run() {
                     }
                 }
             }
-            if (author == null) {
-                author = undefined;
-            }
-            if (pullRequestNumber == null) {
-                pullRequestNumber = undefined;
-            }
+            author ??= undefined;
+            pullRequestNumber ??= undefined;
             const alreadyCreatedChangeLogItem = changeLogItems.find(item => item.message === message && item.author === author);
             if (alreadyCreatedChangeLogItem != null) {
                 if (pullRequestNumber != null) {
@@ -40870,9 +40866,7 @@ async function run() {
                 if (!alreadyCreatedChangeLogItem.commits.some(it => it.sha === commit.sha)) {
                     alreadyCreatedChangeLogItem.commits.push(commit);
                 }
-                if (alreadyCreatedChangeLogItem.type == null) {
-                    alreadyCreatedChangeLogItem.type = type;
-                }
+                alreadyCreatedChangeLogItem.type ??= type;
             }
             else {
                 changeLogItems.push({
@@ -40978,9 +40972,7 @@ async function run() {
             'dependency': '📦 Dependency updates',
             'misc': '🛠️ Misc',
         };
-        releaseDescriptionLines.push('');
-        releaseDescriptionLines.push('# What\'s Changed');
-        releaseDescriptionLines.push('');
+        releaseDescriptionLines.push('', '# What\'s Changed', '');
         changeLogItems
             .filter(it => it.type == null || !(it.type in typeTitles))
             .forEach(appendChangeLogItemToReleaseDescriptionLines);
@@ -40988,9 +40980,7 @@ async function run() {
             const currentChangeLogItems = changeLogItems
                 .filter(it => it.type === type);
             if (currentChangeLogItems.length) {
-                releaseDescriptionLines.push('');
-                releaseDescriptionLines.push(`## ${title}`);
-                releaseDescriptionLines.push('');
+                releaseDescriptionLines.push('', `## ${title}`, '');
                 currentChangeLogItems.forEach(appendChangeLogItemToReleaseDescriptionLines);
             }
         });
