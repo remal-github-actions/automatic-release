@@ -45,9 +45,14 @@ inputs:
   miscPullRequestLabels:
     required: false
     description: Labels of misc Pull Requests that update dependencies
+  checkActorsAllowedToFail:
+    required: false
+    description: >-
+      Actors of GitHub checks that are allowed to fail.
+      The value of `dependencyUpdatesAuthors` is always added to this list.
   actionPathsAllowedToFail:
     required: false
-    description: Paths of GitHub actions are that are allowed to fail
+    description: Paths of GitHub actions that are allowed to fail
   dryRun:
     required: true
     default: 'false'

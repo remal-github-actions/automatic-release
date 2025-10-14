@@ -62,6 +62,12 @@ const miscPullRequestLabels =
         .filter(it => it.length)
 const versionIncrementMode =
     core.getInput('versionIncrementMode', { required: true }).toLowerCase() as VersionIncrementMode
+const checkActorsAllowedToFail =
+    core.getInput('checkActorsAllowedToFail', { required: false })
+        .split(/[\n\r,;]+/)
+        .map(it => it.trim())
+        .filter(it => it.length)
+checkActorsAllowedToFail.push(...dependencyUpdatesAuthors)
 const actionPathsAllowedToFail =
     core.getInput('actionPathsAllowedToFail', { required: false })
         .split(/[\n\r,;]+/)
@@ -94,6 +100,7 @@ async function run(): Promise<void> {
         core.debug(`dependencyUpdatesAuthors=\`${dependencyUpdatesAuthors.join('`, `')}\``)
         core.debug(`miscPullRequestLabels=\`${miscPullRequestLabels.join('`, `')}\``)
         core.debug(`versionIncrementMode=\`${versionIncrementMode}\``)
+        core.debug(`checkActorsAllowedToFail=\`${checkActorsAllowedToFail.join('`, `')}\``)
         core.debug(`actionPathsAllowedToFail=\`${actionPathsAllowedToFail.join('`, `')}\``)
         core.debug(`dryRun=\`${dryRun}\``)
 
@@ -165,32 +172,43 @@ async function run(): Promise<void> {
                     continue
                 }
 
-                if (actionPathsAllowedToFail.length) {
-                    const currentRepoUrlPrefix = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/`
-                    let url = checkRun.html_url
-                    if (url != null) {
-                        if (url.startsWith(currentRepoUrlPrefix)) {
-                            url = url.substring(currentRepoUrlPrefix.length)
+                const appSlug = checkRun.app?.slug ?? ''
+                if (checkActorsAllowedToFail.includes(appSlug)) {
+                    core.info(`Ignoring failed ${checkRun.html_url} check run`
+                        + `, as its app is allowed to fail: '${appSlug}'`,
+                    )
+                    continue
+                }
+
+                const currentRepoUrlPrefix = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/`
+                let url = checkRun.html_url
+                if (url != null) {
+                    if (url.startsWith(currentRepoUrlPrefix)) {
+                        url = url.substring(currentRepoUrlPrefix.length)
+                    }
+                    const actionRunMatch = url?.match(
+                        /^actions\/runs\/(\d+)\/job\/(\d+)$/,
+                    )
+                    if (actionRunMatch != null) {
+                        const actionRunId = actionRunMatch[1]
+                        const actionRun = await octokit.actions.getWorkflowRun({
+                            owner: context.repo.owner,
+                            repo: context.repo.repo,
+                            run_id: parseInt(actionRunId),
+                        }).then(it => it.data)
+                        if (checkActorsAllowedToFail.includes(actionRun.actor?.login ?? '')) {
+                            core.info(`Ignoring failed ${checkRun.html_url} check run`
+                                + `, as it's actor is allowed to fail: ${actionRun.path}`,
+                            )
+                            continue
                         }
-                        const actionRunMatch = url?.match(
-                            /^actions\/runs\/(\d+)\/job\/(\d+)$/,
-                        )
-                        if (actionRunMatch != null) {
-                            const actionRunId = actionRunMatch[1]
-                            const actionRun = await octokit.actions.getWorkflowRun({
-                                owner: context.repo.owner,
-                                repo: context.repo.repo,
-                                run_id: parseInt(actionRunId),
-                            }).then(it => it.data)
-                            if (actionPathsAllowedToFail.includes(actionRun.path)) {
-                                core.info(`Ignoring failed ${checkRun.html_url} check run`
-                                    + `, as it's a part of GitHUb action that is allowed to fail: ${actionRun.path}`,
-                                )
-                                continue
-                            }
+                        if (actionPathsAllowedToFail.includes(actionRun.path)) {
+                            core.info(`Ignoring failed ${checkRun.html_url} check run`
+                                + `, as it's a part of GitHUb action that is allowed to fail: ${actionRun.path}`,
+                            )
+                            continue
                         }
                     }
-
                 }
                 failureCheckRuns.push(checkRun)
             }
