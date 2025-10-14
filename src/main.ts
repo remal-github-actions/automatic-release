@@ -196,9 +196,10 @@ async function run(): Promise<void> {
                             repo: context.repo.repo,
                             run_id: parseInt(actionRunId),
                         }).then(it => it.data)
-                        if (checkActorsAllowedToFail.includes(actionRun.actor?.login ?? '')) {
+                        const actor = actionRun.actor?.login ?? ''
+                        if (checkActorsAllowedToFail.includes(actor)) {
                             core.info(`Ignoring failed ${checkRun.html_url} check run`
-                                + `, as it's actor is allowed to fail: ${actionRun.path}`,
+                                + `, as it's actor is allowed to fail: '${actor}'`,
                             )
                             continue
                         }
