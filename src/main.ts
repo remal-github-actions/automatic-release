@@ -194,7 +194,7 @@ async function run(): Promise<void> {
                         const actionRun = await octokit.actions.getWorkflowRun({
                             owner: context.repo.owner,
                             repo: context.repo.repo,
-                            run_id: parseInt(actionRunId),
+                            run_id: Number.parseInt(actionRunId),
                         }).then(it => it.data)
                         const actor = actionRun.actor?.login ?? ''
                         if (checkActorsAllowedToFail.includes(actor)) {
@@ -267,12 +267,8 @@ async function run(): Promise<void> {
                 }
             }
 
-            if (author == null) {
-                author = undefined
-            }
-            if (pullRequestNumber == null) {
-                pullRequestNumber = undefined
-            }
+            author ??= undefined
+            pullRequestNumber ??= undefined
 
             const alreadyCreatedChangeLogItem = changeLogItems.find(item =>
                 item.message === message && item.author === author,
@@ -286,9 +282,7 @@ async function run(): Promise<void> {
                 if (!alreadyCreatedChangeLogItem.commits.some(it => it.sha === commit.sha)) {
                     alreadyCreatedChangeLogItem.commits.push(commit)
                 }
-                if (alreadyCreatedChangeLogItem.type == null) {
-                    alreadyCreatedChangeLogItem.type = type
-                }
+                alreadyCreatedChangeLogItem.type ??= type
             } else {
                 changeLogItems.push({
                     message,
@@ -422,9 +416,11 @@ async function run(): Promise<void> {
             'misc': '🛠️ Misc',
         }
 
-        releaseDescriptionLines.push('')
-        releaseDescriptionLines.push('# What\'s Changed')
-        releaseDescriptionLines.push('')
+        releaseDescriptionLines.push(
+            '',
+            '# What\'s Changed',
+            '',
+        )
 
         changeLogItems
             .filter(it => it.type == null || !(it.type in typeTitles))
@@ -434,9 +430,11 @@ async function run(): Promise<void> {
             const currentChangeLogItems = changeLogItems
                 .filter(it => it.type === type)
             if (currentChangeLogItems.length) {
-                releaseDescriptionLines.push('')
-                releaseDescriptionLines.push(`## ${title}`)
-                releaseDescriptionLines.push('')
+                releaseDescriptionLines.push(
+                    '',
+                    `## ${title}`,
+                    '',
+                )
 
                 currentChangeLogItems.forEach(appendChangeLogItemToReleaseDescriptionLines)
             }
