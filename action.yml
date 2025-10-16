@@ -29,9 +29,6 @@ inputs:
   allowedCommitPrefixes:
     required: false
     description: Allowed commit messages prefixes
-  allowedPullRequestLabels:
-    required: false
-    description: Allowed Pull Request labels
   skippedChangelogCommitPrefixes:
     required: false
     description: Commit messages that won't be displayed in changelog
