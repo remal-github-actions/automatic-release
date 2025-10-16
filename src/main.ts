@@ -312,6 +312,7 @@ async function run(): Promise<void> {
                     pullRequestAssociatedWithCommit.user?.login ?? undefined,
                     pullRequestAssociatedWithCommit.number,
                 )
+                continue forEachCommit
             }
 
             for (const allowedCommitPrefix of allowedCommitPrefixes) {
