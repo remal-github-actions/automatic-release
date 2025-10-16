@@ -40888,6 +40888,7 @@ async function run() {
                     type = 'dependency';
                 }
                 addChangelogItem(commit, type, pullRequestAssociatedWithCommit.title, pullRequestAssociatedWithCommit.title, pullRequestAssociatedWithCommit.user?.login ?? undefined, pullRequestAssociatedWithCommit.number);
+                continue forEachCommit;
             }
             for (const allowedCommitPrefix of allowedCommitPrefixes) {
                 if (message.startsWith(allowedCommitPrefix)) {
