@@ -290,7 +290,8 @@ async function run(): Promise<void> {
             core.debug(`Testing if commit is allowed: ${commit.html_url}: ${message}`)
 
             const pullRequestsAssociatedWithCommit = await retrievePullRequestsAssociatedWithCommit(octokit, commit)
-            for (const pullRequestAssociatedWithCommit of pullRequestsAssociatedWithCommit) {
+            if (pullRequestsAssociatedWithCommit.length) {
+                const pullRequestAssociatedWithCommit = pullRequestsAssociatedWithCommit[0]
                 const labels = pullRequestAssociatedWithCommit.labels.map(it => it.name)
                 core.info(`Allowed Pull Request commit : ${message}: ${pullRequestAssociatedWithCommit.html_url}`
                     + ` (PR labels: \`${labels.join('`, `')}\`)`,
