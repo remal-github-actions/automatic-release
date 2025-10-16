@@ -35,11 +35,6 @@ const allowedCommitPrefixes =
         .split(/[\n\r,;]+/)
         .map(it => it.trim())
         .filter(it => it.length)
-const allowedPullRequestLabels =
-    core.getInput('allowedPullRequestLabels', { required: false })
-        .split(/[\n\r,;]+/)
-        .map(it => it.trim())
-        .filter(it => it.length)
 const skippedChangelogCommitPrefixes =
     core.getInput('skippedChangelogCommitPrefixes', { required: false })
         .split(/[\n\r,;]+/)
@@ -77,11 +72,6 @@ const dryRun = core.getInput('dryRun', { required: false }).toLowerCase() === 't
 
 allowedVersionTagPrefixes.push(versionTagPrefix)
 
-;[
-    dependencyUpdatesPullRequestLabels,
-    miscPullRequestLabels,
-].flat().forEach(label => allowedPullRequestLabels.push(label))
-
 const octokit = newOctokitInstance(githubToken)
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -94,7 +84,6 @@ async function run(): Promise<void> {
         core.debug(`expectedFilesToChange=\`${expectedFilesToChange.join('`, `')}\``)
         core.debug(`ignoreExpectedFilesToChange=\`${ignoreExpectedFilesToChange}\``)
         core.debug(`allowedCommitPrefixes=\`${allowedCommitPrefixes.join('`, `')}\``)
-        core.debug(`allowedPullRequestLabels=\`${allowedPullRequestLabels.join('`, `')}\``)
         core.debug(`skippedChangelogCommitPrefixes=\`${skippedChangelogCommitPrefixes.join('`, `')}\``)
         core.debug(`dependencyUpdatesPullRequestLabels=\`${dependencyUpdatesPullRequestLabels.join('`, `')}\``)
         core.debug(`dependencyUpdatesAuthors=\`${dependencyUpdatesAuthors.join('`, `')}\``)
@@ -303,30 +292,26 @@ async function run(): Promise<void> {
             const pullRequestsAssociatedWithCommit = await retrievePullRequestsAssociatedWithCommit(octokit, commit)
             for (const pullRequestAssociatedWithCommit of pullRequestsAssociatedWithCommit) {
                 const labels = pullRequestAssociatedWithCommit.labels.map(it => it.name)
-                for (const allowedPullRequestLabel of allowedPullRequestLabels) {
-                    if (labels.includes(allowedPullRequestLabel)) {
-                        core.info(`Allowed commit by Pull Request label ('${allowedPullRequestLabel}'): ${message}: ${pullRequestAssociatedWithCommit.html_url}`
-                            + ` (all labels: \`${labels.join('`, `')}\`)`,
-                        )
-                        let type: ChangeLogItemType | undefined = undefined
-                        if (hasNotEmptyIntersection(labels, miscPullRequestLabels)) {
-                            type = 'misc'
-                        } else if (hasNotEmptyIntersection(labels, dependencyUpdatesPullRequestLabels)
-                            || dependencyUpdatesAuthors.includes(pullRequestAssociatedWithCommit.user?.login ?? '')
-                        ) {
-                            type = 'dependency'
-                        }
-                        addChangelogItem(
-                            commit,
-                            type,
-                            pullRequestAssociatedWithCommit.title,
-                            pullRequestAssociatedWithCommit.title,
-                            pullRequestAssociatedWithCommit.user?.login ?? undefined,
-                            pullRequestAssociatedWithCommit.number,
-                        )
-                        continue forEachCommit
-                    }
+                core.info(`Allowed Pull Request commit : ${message}: ${pullRequestAssociatedWithCommit.html_url}`
+                    + ` (PR labels: \`${labels.join('`, `')}\`)`,
+                )
+
+                let type: ChangeLogItemType | undefined = undefined
+                if (hasNotEmptyIntersection(labels, miscPullRequestLabels)) {
+                    type = 'misc'
+                } else if (hasNotEmptyIntersection(labels, dependencyUpdatesPullRequestLabels)
+                    || dependencyUpdatesAuthors.includes(pullRequestAssociatedWithCommit.user?.login ?? '')
+                ) {
+                    type = 'dependency'
                 }
+                addChangelogItem(
+                    commit,
+                    type,
+                    pullRequestAssociatedWithCommit.title,
+                    pullRequestAssociatedWithCommit.title,
+                    pullRequestAssociatedWithCommit.user?.login ?? undefined,
+                    pullRequestAssociatedWithCommit.number,
+                )
             }
 
             for (const allowedCommitPrefix of allowedCommitPrefixes) {
