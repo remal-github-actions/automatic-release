@@ -40831,28 +40831,39 @@ const ignoreExpectedFilesToChange = core.getInput('ignoreExpectedFilesToChange',
 const allowedCommitPrefixes = core.getInput('allowedCommitPrefixes', { required: false })
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
-    .filter(it => it.length);
+    .filter(it => it.length)
+    .map(it => it.toLowerCase());
 const skippedChangelogCommitPrefixes = core.getInput('skippedChangelogCommitPrefixes', { required: false })
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
-    .filter(it => it.length);
+    .filter(it => it.length)
+    .map(it => it.toLowerCase());
+const skippedChangelogPullRequestLabels = core.getInput('skippedChangelogPullRequestLabels', { required: false })
+    .split(/[\n\r,;]+/)
+    .map(it => it.trim())
+    .filter(it => it.length)
+    .map(it => it.toLowerCase());
 const dependencyUpdatesPullRequestLabels = core.getInput('dependencyUpdatesPullRequestLabels', { required: false })
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
-    .filter(it => it.length);
+    .filter(it => it.length)
+    .map(it => it.toLowerCase());
 const dependencyUpdatesAuthors = core.getInput('dependencyUpdatesAuthors', { required: false })
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
-    .filter(it => it.length);
+    .filter(it => it.length)
+    .map(it => it.toLowerCase());
 const miscPullRequestLabels = core.getInput('miscPullRequestLabels', { required: false })
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
-    .filter(it => it.length);
+    .filter(it => it.length)
+    .map(it => it.toLowerCase());
 const versionIncrementMode = core.getInput('versionIncrementMode', { required: true }).toLowerCase();
 const checkActorsAllowedToFail = core.getInput('checkActorsAllowedToFail', { required: false })
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
-    .filter(it => it.length);
+    .filter(it => it.length)
+    .map(it => it.toLowerCase());
 checkActorsAllowedToFail.push(...dependencyUpdatesAuthors);
 const actionPathsAllowedToFail = core.getInput('actionPathsAllowedToFail', { required: false })
     .split(/[\n\r,;]+/)
@@ -40870,6 +40881,7 @@ async function run() {
         core.debug(`ignoreExpectedFilesToChange=\`${ignoreExpectedFilesToChange}\``);
         core.debug(`allowedCommitPrefixes=\`${allowedCommitPrefixes.join('`, `')}\``);
         core.debug(`skippedChangelogCommitPrefixes=\`${skippedChangelogCommitPrefixes.join('`, `')}\``);
+        core.debug(`skippedChangelogPullRequestLabels=\`${skippedChangelogPullRequestLabels.join('`, `')}\``);
         core.debug(`dependencyUpdatesPullRequestLabels=\`${dependencyUpdatesPullRequestLabels.join('`, `')}\``);
         core.debug(`dependencyUpdatesAuthors=\`${dependencyUpdatesAuthors.join('`, `')}\``);
         core.debug(`miscPullRequestLabels=\`${miscPullRequestLabels.join('`, `')}\``);
@@ -40934,7 +40946,7 @@ async function run() {
                         + `, as its Check Suite ID equals to the current Check Suite ID: ${currentCheckSuiteId}`);
                     continue;
                 }
-                const appSlug = checkRun.app?.slug ?? '';
+                const appSlug = checkRun.app?.slug?.toLowerCase() ?? '';
                 if (checkActorsAllowedToFail.includes(appSlug)) {
                     core.info(`Ignoring failed ${checkRun.html_url} check run`
                         + `, as its app is allowed to fail: '${appSlug}'`);
@@ -40954,7 +40966,7 @@ async function run() {
                             repo: github.context.repo.repo,
                             run_id: Number.parseInt(actionRunId),
                         }).then(it => it.data);
-                        const actor = actionRun.actor?.login ?? '';
+                        const actor = actionRun.actor?.login?.toLowerCase() ?? '';
                         if (checkActorsAllowedToFail.includes(actor)) {
                             core.info(`Ignoring failed ${checkRun.html_url} check run`
                                 + `, as it's actor is allowed to fail: '${actor}'`);
@@ -40998,7 +41010,7 @@ async function run() {
                 return;
             }
             for (const skippedChangelogCommitPrefix of skippedChangelogCommitPrefixes) {
-                if (originalMessage.startsWith(skippedChangelogCommitPrefix)) {
+                if (originalMessage.toLowerCase().startsWith(skippedChangelogCommitPrefix)) {
                     const messageAfterPrefix = originalMessage.substring(skippedChangelogCommitPrefix.length);
                     if (!messageAfterPrefix.trim().length
                         || messageAfterPrefix.match(/^\W/)
@@ -41040,29 +41052,38 @@ async function run() {
             const pullRequestsAssociatedWithCommit = await retrievePullRequestsAssociatedWithCommit(octokit, commit);
             if (pullRequestsAssociatedWithCommit.length) {
                 const pullRequestAssociatedWithCommit = pullRequestsAssociatedWithCommit[0];
-                const labels = pullRequestAssociatedWithCommit.labels.map(it => it.name);
-                core.info(`Allowed Pull Request commit : ${message}: ${pullRequestAssociatedWithCommit.html_url}`
+                const labels = pullRequestAssociatedWithCommit.labels.map(it => it.name.toLowerCase());
+                const labelSkippedBy = skippedChangelogPullRequestLabels.find(label => labels.includes(label));
+                if (labelSkippedBy != null) {
+                    core.info(`Excluding Pull Request by label '${labelSkippedBy}': ${message}`
+                        + `: ${pullRequestAssociatedWithCommit.html_url}`
+                        + ` (PR labels: \`${labels.join('`, `')}\`)`);
+                    continue forEachCommit;
+                }
+                core.info(`Allowed Pull Request commit: ${message}`
+                    + `: ${pullRequestAssociatedWithCommit.html_url}`
                     + ` (PR labels: \`${labels.join('`, `')}\`)`);
+                const userLoginToTestAgainst = pullRequestAssociatedWithCommit.user?.login?.toLowerCase() ?? '';
                 let type = undefined;
                 if (hasNotEmptyIntersection(labels, miscPullRequestLabels)) {
                     type = 'misc';
                 }
                 else if (hasNotEmptyIntersection(labels, dependencyUpdatesPullRequestLabels)
-                    || dependencyUpdatesAuthors.includes(pullRequestAssociatedWithCommit.user?.login ?? '')) {
+                    || dependencyUpdatesAuthors.includes(userLoginToTestAgainst)) {
                     type = 'dependency';
                 }
                 addChangelogItem(commit, type, pullRequestAssociatedWithCommit.title, pullRequestAssociatedWithCommit.title, pullRequestAssociatedWithCommit.user?.login ?? undefined, pullRequestAssociatedWithCommit.number);
                 continue forEachCommit;
             }
             for (const allowedCommitPrefix of allowedCommitPrefixes) {
-                if (message.startsWith(allowedCommitPrefix)) {
+                if (message.toLowerCase().startsWith(allowedCommitPrefix)) {
                     const messageAfterPrefix = message.substring(allowedCommitPrefix.length);
                     if (!messageAfterPrefix.trim().length
                         || messageAfterPrefix.match(/^\W/)
                         || allowedCommitPrefix.match(/\W$/)) {
                         core.info(`Allowed commit by commit message prefix ('${allowedCommitPrefix}'): ${message}: ${commit.html_url}`);
                         let type = undefined;
-                        if (dependencyUpdatesAuthors.includes(commit.author?.name ?? '')) {
+                        if (dependencyUpdatesAuthors.includes(commit.author?.name?.toLowerCase() ?? '')) {
                             type = 'dependency';
                         }
                         addChangelogItem(commit, type, messageAfterPrefix.trim().length
