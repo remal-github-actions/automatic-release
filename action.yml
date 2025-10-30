@@ -32,6 +32,9 @@ inputs:
   skippedChangelogCommitPrefixes:
     required: false
     description: Commit messages that won't be displayed in changelog
+  skippedChangelogPullRequestLabels:
+    required: false
+    description: Pull Requests with these labels won't be displayed in changelog
   dependencyUpdatesPullRequestLabels:
     required: false
     description: Labels of Pull Requests that update dependencies (i.e. PRs from tools like Dependabot, Renovate, etc)

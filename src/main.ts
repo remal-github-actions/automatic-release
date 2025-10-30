@@ -35,26 +35,37 @@ const allowedCommitPrefixes =
         .split(/[\n\r,;]+/)
         .map(it => it.trim())
         .filter(it => it.length)
+        .map(it => it.toLowerCase())
 const skippedChangelogCommitPrefixes =
     core.getInput('skippedChangelogCommitPrefixes', { required: false })
         .split(/[\n\r,;]+/)
         .map(it => it.trim())
         .filter(it => it.length)
+        .map(it => it.toLowerCase())
+const skippedChangelogPullRequestLabels =
+    core.getInput('skippedChangelogPullRequestLabels', { required: false })
+        .split(/[\n\r,;]+/)
+        .map(it => it.trim())
+        .filter(it => it.length)
+        .map(it => it.toLowerCase())
 const dependencyUpdatesPullRequestLabels =
     core.getInput('dependencyUpdatesPullRequestLabels', { required: false })
         .split(/[\n\r,;]+/)
         .map(it => it.trim())
         .filter(it => it.length)
+        .map(it => it.toLowerCase())
 const dependencyUpdatesAuthors =
     core.getInput('dependencyUpdatesAuthors', { required: false })
         .split(/[\n\r,;]+/)
         .map(it => it.trim())
         .filter(it => it.length)
+        .map(it => it.toLowerCase())
 const miscPullRequestLabels =
     core.getInput('miscPullRequestLabels', { required: false })
         .split(/[\n\r,;]+/)
         .map(it => it.trim())
         .filter(it => it.length)
+        .map(it => it.toLowerCase())
 const versionIncrementMode =
     core.getInput('versionIncrementMode', { required: true }).toLowerCase() as VersionIncrementMode
 const checkActorsAllowedToFail =
@@ -62,6 +73,7 @@ const checkActorsAllowedToFail =
         .split(/[\n\r,;]+/)
         .map(it => it.trim())
         .filter(it => it.length)
+        .map(it => it.toLowerCase())
 checkActorsAllowedToFail.push(...dependencyUpdatesAuthors)
 const actionPathsAllowedToFail =
     core.getInput('actionPathsAllowedToFail', { required: false })
@@ -85,6 +97,7 @@ async function run(): Promise<void> {
         core.debug(`ignoreExpectedFilesToChange=\`${ignoreExpectedFilesToChange}\``)
         core.debug(`allowedCommitPrefixes=\`${allowedCommitPrefixes.join('`, `')}\``)
         core.debug(`skippedChangelogCommitPrefixes=\`${skippedChangelogCommitPrefixes.join('`, `')}\``)
+        core.debug(`skippedChangelogPullRequestLabels=\`${skippedChangelogPullRequestLabels.join('`, `')}\``)
         core.debug(`dependencyUpdatesPullRequestLabels=\`${dependencyUpdatesPullRequestLabels.join('`, `')}\``)
         core.debug(`dependencyUpdatesAuthors=\`${dependencyUpdatesAuthors.join('`, `')}\``)
         core.debug(`miscPullRequestLabels=\`${miscPullRequestLabels.join('`, `')}\``)
@@ -161,7 +174,7 @@ async function run(): Promise<void> {
                     continue
                 }
 
-                const appSlug = checkRun.app?.slug ?? ''
+                const appSlug = checkRun.app?.slug?.toLowerCase() ?? ''
                 if (checkActorsAllowedToFail.includes(appSlug)) {
                     core.info(`Ignoring failed ${checkRun.html_url} check run`
                         + `, as its app is allowed to fail: '${appSlug}'`,
@@ -185,7 +198,7 @@ async function run(): Promise<void> {
                             repo: context.repo.repo,
                             run_id: Number.parseInt(actionRunId),
                         }).then(it => it.data)
-                        const actor = actionRun.actor?.login ?? ''
+                        const actor = actionRun.actor?.login?.toLowerCase() ?? ''
                         if (checkActorsAllowedToFail.includes(actor)) {
                             core.info(`Ignoring failed ${checkRun.html_url} check run`
                                 + `, as it's actor is allowed to fail: '${actor}'`,
@@ -244,7 +257,7 @@ async function run(): Promise<void> {
             }
 
             for (const skippedChangelogCommitPrefix of skippedChangelogCommitPrefixes) {
-                if (originalMessage.startsWith(skippedChangelogCommitPrefix)) {
+                if (originalMessage.toLowerCase().startsWith(skippedChangelogCommitPrefix)) {
                     const messageAfterPrefix = originalMessage.substring(skippedChangelogCommitPrefix.length)
                     if (!messageAfterPrefix.trim().length
                         || messageAfterPrefix.match(/^\W/)
@@ -292,16 +305,29 @@ async function run(): Promise<void> {
             const pullRequestsAssociatedWithCommit = await retrievePullRequestsAssociatedWithCommit(octokit, commit)
             if (pullRequestsAssociatedWithCommit.length) {
                 const pullRequestAssociatedWithCommit = pullRequestsAssociatedWithCommit[0]
-                const labels = pullRequestAssociatedWithCommit.labels.map(it => it.name)
-                core.info(`Allowed Pull Request commit : ${message}: ${pullRequestAssociatedWithCommit.html_url}`
+                const labels = pullRequestAssociatedWithCommit.labels.map(it => it.name.toLowerCase())
+
+                const labelSkippedBy = skippedChangelogPullRequestLabels.find(label => labels.includes(label))
+                if (labelSkippedBy != null) {
+                    core.info(`Excluding Pull Request by label '${labelSkippedBy}': ${message}`
+                        + `: ${pullRequestAssociatedWithCommit.html_url}`
+                        + ` (PR labels: \`${labels.join('`, `')}\`)`,
+                    )
+                    continue forEachCommit
+                }
+
+                core.info(`Allowed Pull Request commit: ${message}`
+                    + `: ${pullRequestAssociatedWithCommit.html_url}`
                     + ` (PR labels: \`${labels.join('`, `')}\`)`,
                 )
+
+                const userLoginToTestAgainst = pullRequestAssociatedWithCommit.user?.login?.toLowerCase() ?? ''
 
                 let type: ChangeLogItemType | undefined = undefined
                 if (hasNotEmptyIntersection(labels, miscPullRequestLabels)) {
                     type = 'misc'
                 } else if (hasNotEmptyIntersection(labels, dependencyUpdatesPullRequestLabels)
-                    || dependencyUpdatesAuthors.includes(pullRequestAssociatedWithCommit.user?.login ?? '')
+                    || dependencyUpdatesAuthors.includes(userLoginToTestAgainst)
                 ) {
                     type = 'dependency'
                 }
@@ -317,7 +343,7 @@ async function run(): Promise<void> {
             }
 
             for (const allowedCommitPrefix of allowedCommitPrefixes) {
-                if (message.startsWith(allowedCommitPrefix)) {
+                if (message.toLowerCase().startsWith(allowedCommitPrefix)) {
                     const messageAfterPrefix = message.substring(allowedCommitPrefix.length)
                     if (!messageAfterPrefix.trim().length
                         || messageAfterPrefix.match(/^\W/)
@@ -325,7 +351,7 @@ async function run(): Promise<void> {
                     ) {
                         core.info(`Allowed commit by commit message prefix ('${allowedCommitPrefix}'): ${message}: ${commit.html_url}`)
                         let type: ChangeLogItemType | undefined = undefined
-                        if (dependencyUpdatesAuthors.includes(commit.author?.name ?? '')) {
+                        if (dependencyUpdatesAuthors.includes(commit.author?.name?.toLowerCase() ?? '')) {
                             type = 'dependency'
                         }
                         addChangelogItem(
