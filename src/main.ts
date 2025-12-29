@@ -80,6 +80,7 @@ const actionPathsAllowedToFail =
         .split(/[\n\r,;]+/)
         .map(it => it.trim())
         .filter(it => it.length)
+const addAutomaticReleaseInfo = core.getInput('addAutomaticReleaseInfo', { required: false }).toLowerCase() === 'true'
 const dryRun = core.getInput('dryRun', { required: false }).toLowerCase() === 'true'
 
 allowedVersionTagPrefixes.push(versionTagPrefix)
@@ -389,7 +390,9 @@ async function run(): Promise<void> {
         const releaseTag = `${versionTagPrefix}${releaseVersion}`
 
         const releaseDescriptionLines: string[] = []
-        releaseDescriptionLines.push(`_[Automatic release](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})_`)
+        if (addAutomaticReleaseInfo) {
+            releaseDescriptionLines.push(`_[Automatic release](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})_`)
+        }
 
         function appendChangeLogItemToReleaseDescriptionLines(changeLogItem: ChangeLogItem) {
             const tokens = [

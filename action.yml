@@ -53,6 +53,9 @@ inputs:
   actionPathsAllowedToFail:
     required: false
     description: Paths of GitHub actions that are allowed to fail
+  addAutomaticReleaseInfo:
+    required: false
+    description: Add information about automatic release to the changelog
   dryRun:
     required: true
     default: 'false'
