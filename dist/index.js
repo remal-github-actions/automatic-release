@@ -41655,6 +41655,7 @@ async function run() {
                 return 0;
             }
         }));
+        core.info(`Release frequency (ms) calculated from changelog items: ${releaseFrequencyMillis}`);
         if (releaseFrequencyMillis > 0) {
             let lastVersionTagCreatedAt = undefined;
             const release = await retrieveRelease(octokit, lastVersionTag.tag.name);
@@ -41675,7 +41676,6 @@ async function run() {
             if (now.getTime() < nextAllowedReleaseDate.getTime()) {
                 core.warning(`Skipping release creation, as the release frequency interval has not passed yet.`);
                 core.info(`  Last version tag '${lastVersionTag.tag.name}' created at: ${lastVersionTagCreatedAt}`);
-                core.info(`  Release frequency (ms): ${releaseFrequencyMillis}`);
                 core.info(`  Next allowed release date: ${nextAllowedReleaseDate}`);
                 core.info(`  Current date: ${now}`);
                 return;
