@@ -36360,6 +36360,66 @@ var __webpack_exports__ = {};
 var core = __nccwpck_require__(7484);
 // EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
 var github = __nccwpck_require__(3228);
+;// CONCATENATED MODULE: ./node_modules/parse-duration/locale/en.js
+const unit = Object.create(null)
+const m = 60000, h = m * 60, d = h * 24, y = d * 365.25
+
+unit.year = unit.yr = unit.y = y
+unit.month = unit.mo = unit.mth = y / 12
+unit.week = unit.wk = unit.w = d * 7
+unit.day = unit.d = d
+unit.hour = unit.hr = unit.h = h
+unit.minute = unit.min = unit.m = m
+unit.second = unit.sec = unit.s = 1000
+unit.millisecond = unit.millisec = unit.ms = 1
+unit.microsecond = unit.microsec =  unit.us = unit.µs = 1e-3
+unit.nanosecond = unit.nanosec = unit.ns = 1e-6
+
+unit.group = ','
+unit.decimal = '.'
+unit.placeholder = ' _'
+
+/* harmony default export */ const en = (unit);
+
+;// CONCATENATED MODULE: ./node_modules/parse-duration/index.js
+
+
+const durationRE = /((?:\d{1,16}(?:\.\d{1,16})?|\.\d{1,16})(?:[eE][-+]?\d{1,4})?)\s?([\p{L}]{0,14})/gu
+
+parse.unit = en
+
+/**
+ * convert `str` to ms
+ *
+ * @param {string} str
+ * @param {string} format
+ * @return {number|null}
+ */
+function parse(str = '', format = 'ms') {
+  let result = null, prevUnits
+
+  String(str)
+    .replace(new RegExp(`(\\d)[${parse.unit.placeholder}${parse.unit.group}](\\d)`, 'g'), '$1$2')  // clean up group separators / placeholders
+    .replace(parse.unit.decimal, '.') // normalize decimal separator
+    .replace(durationRE, (_, n, units) => {
+    // if no units, find next smallest units or fall back to format value
+    // eg. 1h30 -> 1h30m
+    if (!units) {
+      if (prevUnits) {
+        for (const u in parse.unit) if (parse.unit[u] < prevUnits) { units = u; break }
+      }
+      else units = format
+    }
+    else units = units.toLowerCase()
+
+    prevUnits = units = parse.unit[units] || parse.unit[units.replace(/s$/, '')]
+
+    if (units) result = (result || 0) + n * units
+  })
+
+  return result && ((result / (parse.unit[format] || 1)) * (str[0] === '-' ? -1 : 1))
+}
+
 // EXTERNAL MODULE: ./node_modules/picomatch/index.js
 var picomatch = __nccwpck_require__(4006);
 ;// CONCATENATED MODULE: ./build/internal/createRelease.js
@@ -37104,7 +37164,7 @@ function expand(template, context) {
 }
 
 // pkg/dist-src/parse.js
-function parse(options) {
+function dist_bundle_parse(options) {
   let method = options.method.toUpperCase();
   let url = (options.url || "/").replace(/:([a-z]\w+)/g, "{$1}");
   let headers = Object.assign({}, options.headers);
@@ -37170,7 +37230,7 @@ function parse(options) {
 
 // pkg/dist-src/endpoint-with-defaults.js
 function endpointWithDefaults(defaults, route, options) {
-  return parse(merge(defaults, route, options));
+  return dist_bundle_parse(merge(defaults, route, options));
 }
 
 // pkg/dist-src/with-defaults.js
@@ -37181,7 +37241,7 @@ function withDefaults(oldDefaults, newDefaults) {
     DEFAULTS: DEFAULTS2,
     defaults: withDefaults.bind(null, DEFAULTS2),
     merge: merge.bind(null, DEFAULTS2),
-    parse
+    parse: dist_bundle_parse
   });
 }
 
@@ -41074,6 +41134,16 @@ async function retrieveCheckRuns(octokit, commitSha) {
     });
 }
 
+;// CONCATENATED MODULE: ./build/internal/retrieveCommit.js
+
+async function retrieveCommit(octokit, commitSha) {
+    return octokit.repos.getCommit({
+        owner: github.context.repo.owner,
+        repo: github.context.repo.repo,
+        ref: commitSha,
+    }).then(it => it.data);
+}
+
 ;// CONCATENATED MODULE: ./build/internal/retrieveCommitComparison.js
 
 
@@ -41137,6 +41207,23 @@ async function retrievePullRequestsAssociatedWithCommit(octokit, commit) {
         owner: github.context.repo.owner,
         repo: github.context.repo.repo,
         commit_sha: commit.sha,
+    });
+}
+
+;// CONCATENATED MODULE: ./build/internal/retrieveRelease.js
+
+async function retrieveRelease(octokit, tagName) {
+    return octokit.repos.getReleaseByTag({
+        owner: github.context.repo.owner,
+        repo: github.context.repo.repo,
+        tag: tagName,
+    })
+        .then(it => it.data)
+        .catch(err => {
+        if (err?.status === 404) {
+            return undefined;
+        }
+        throw err;
     });
 }
 
@@ -41247,6 +41334,19 @@ function onlyUniqueBy(extractor) {
 
 
 
+
+
+
+parse.unit['milli'] = parse.unit.millisecond;
+parse.unit['micro'] = parse.unit.microsecond;
+parse.unit['nano'] = parse.unit.nanosecond;
+function parseDurationParam(name) {
+    const value = core.getInput(name, { required: false });
+    if (!value) {
+        return undefined;
+    }
+    return parse(value) || undefined;
+}
 const githubToken = core.getInput('githubToken', { required: true });
 const failOnNotAllowedCommits = core.getInput('failOnNotAllowedCommits', { required: true }).toLowerCase() === 'true';
 const versionTagPrefix = core.getInput('versionTagPrefix', { required: false });
@@ -41284,11 +41384,13 @@ const dependencyUpdatesAuthors = core.getInput('dependencyUpdatesAuthors', { req
     .map(it => it.trim())
     .filter(it => it.length)
     .map(it => it.toLowerCase());
+const releaseFrequencyForDependencyUpdates = parseDurationParam('releaseFrequencyForDependencyUpdates');
 const miscPullRequestLabels = core.getInput('miscPullRequestLabels', { required: false })
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
     .filter(it => it.length)
     .map(it => it.toLowerCase());
+const releaseFrequencyForMiscPullRequests = parseDurationParam('releaseFrequencyForMiscPullRequests');
 const versionIncrementMode = core.getInput('versionIncrementMode', { required: true }).toLowerCase();
 const checkActorsAllowedToFail = core.getInput('checkActorsAllowedToFail', { required: false })
     .split(/[\n\r,;]+/)
@@ -41300,6 +41402,7 @@ const actionPathsAllowedToFail = core.getInput('actionPathsAllowedToFail', { req
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
     .filter(it => it.length);
+const addAutomaticReleaseInfo = core.getInput('addAutomaticReleaseInfo', { required: false }).toLowerCase() === 'true';
 const dryRun = core.getInput('dryRun', { required: false }).toLowerCase() === 'true';
 allowedVersionTagPrefixes.push(versionTagPrefix);
 const octokit = newOctokitInstance(githubToken);
@@ -41315,10 +41418,13 @@ async function run() {
         core.debug(`skippedChangelogPullRequestLabels=\`${skippedChangelogPullRequestLabels.join('`, `')}\``);
         core.debug(`dependencyUpdatesPullRequestLabels=\`${dependencyUpdatesPullRequestLabels.join('`, `')}\``);
         core.debug(`dependencyUpdatesAuthors=\`${dependencyUpdatesAuthors.join('`, `')}\``);
+        core.debug(`releaseFrequencyForDependencyUpdates=\`${releaseFrequencyForDependencyUpdates}\``);
         core.debug(`miscPullRequestLabels=\`${miscPullRequestLabels.join('`, `')}\``);
+        core.debug(`releaseFrequencyForMiscPullRequests=\`${releaseFrequencyForMiscPullRequests}\``);
         core.debug(`versionIncrementMode=\`${versionIncrementMode}\``);
         core.debug(`checkActorsAllowedToFail=\`${checkActorsAllowedToFail.join('`, `')}\``);
         core.debug(`actionPathsAllowedToFail=\`${actionPathsAllowedToFail.join('`, `')}\``);
+        core.debug(`addAutomaticReleaseInfo=\`${addAutomaticReleaseInfo}\``);
         core.debug(`dryRun=\`${dryRun}\``);
         const repo = await retrieveRepo(octokit);
         const lastVersionTag = await retrieveLastVersionTag(octokit, allowedVersionTagPrefixes);
@@ -41537,10 +41643,50 @@ async function run() {
             core.warning(`Skipping release creation, as no changelog items were collected`);
             return;
         }
+        const releaseFrequencyMillis = Math.min(...changeLogItems.map(item => {
+            const type = item.type;
+            if (type === 'dependency') {
+                return releaseFrequencyForDependencyUpdates || 0;
+            }
+            else if (type === 'misc') {
+                return releaseFrequencyForMiscPullRequests || 0;
+            }
+            else {
+                return 0;
+            }
+        }));
+        if (releaseFrequencyMillis > 0) {
+            let lastVersionTagCreatedAt = undefined;
+            const release = await retrieveRelease(octokit, lastVersionTag.tag.name);
+            if (release?.published_at != null) {
+                lastVersionTagCreatedAt = new Date(release.published_at);
+            }
+            if (lastVersionTagCreatedAt == null) {
+                const releaseCommit = await retrieveCommit(octokit, lastVersionTag.tag.commit.sha);
+                const releaseCommitDateString = releaseCommit?.commit?.committer?.date
+                    ?? releaseCommit?.commit?.author?.date;
+                if (releaseCommitDateString == null) {
+                    throw new Error(`Can't determine the creation date of the last version tag '${lastVersionTag.tag.name}'`);
+                }
+                lastVersionTagCreatedAt = new Date(releaseCommitDateString);
+            }
+            const nextAllowedReleaseDate = new Date(lastVersionTagCreatedAt.getTime() + releaseFrequencyMillis);
+            const now = new Date();
+            if (now.getTime() < nextAllowedReleaseDate.getTime()) {
+                core.warning(`Skipping release creation, as the release frequency interval has not passed yet.`);
+                core.info(`  Last version tag '${lastVersionTag.tag.name}' created at: ${lastVersionTagCreatedAt}`);
+                core.info(`  Release frequency (ms): ${releaseFrequencyMillis}`);
+                core.info(`  Next allowed release date: ${nextAllowedReleaseDate}`);
+                core.info(`  Current date: ${now}`);
+                return;
+            }
+        }
         const releaseVersion = incrementVersion(lastVersionTag.version, versionIncrementMode);
         const releaseTag = `${versionTagPrefix}${releaseVersion}`;
         const releaseDescriptionLines = [];
-        releaseDescriptionLines.push(`_[Automatic release](${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.repo}/actions/runs/${github.context.runId})_`);
+        if (addAutomaticReleaseInfo) {
+            releaseDescriptionLines.push(`_[Automatic release](${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.repo}/actions/runs/${github.context.runId})_`);
+        }
         function appendChangeLogItemToReleaseDescriptionLines(changeLogItem) {
             const tokens = [
                 '*',
