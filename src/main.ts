@@ -1,17 +1,34 @@
 import * as core from '@actions/core'
 import { context } from '@actions/github'
+import parseDurationToMillis from 'parse-duration'
 import picomatch from 'picomatch'
 import { createRelease } from './internal/createRelease.js'
 import { incrementVersion } from './internal/incrementVersion.js'
 import { newOctokitInstance } from './internal/octokit.js'
 import { retrieveCheckRuns } from './internal/retrieveCheckRuns.js'
+import { retrieveCommit } from './internal/retrieveCommit.js'
 import { retrieveCommitComparison } from './internal/retrieveCommitComparison.js'
 import { retrieveDefaultBranch } from './internal/retrieveDefaultBranch.js'
 import { retrievePullRequestsAssociatedWithCommit } from './internal/retrievePullRequestsAssociatedWithCommit.js'
+import { retrieveRelease } from './internal/retrieveRelease.js'
 import { retrieveRepo } from './internal/retrieveRepo.js'
 import { retrieveLastVersionTag } from './internal/retrieveVersionTags.js'
 import { ChangeLogItem, ChangeLogItemType, CheckRun, Commit, VersionIncrementMode } from './internal/types.js'
 import { hasNotEmptyIntersection, onlyUnique } from './internal/utils.js'
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+parseDurationToMillis.unit['milli'] = parseDurationToMillis.unit.millisecond
+parseDurationToMillis.unit['micro'] = parseDurationToMillis.unit.microsecond
+parseDurationToMillis.unit['nano'] = parseDurationToMillis.unit.nanosecond
+
+function parseDurationParam(name: string): number | undefined {
+    const value = core.getInput(name, { required: false })
+    if (!value) {
+        return undefined
+    }
+    return parseDurationToMillis(value) || undefined
+}
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -60,12 +77,14 @@ const dependencyUpdatesAuthors =
         .map(it => it.trim())
         .filter(it => it.length)
         .map(it => it.toLowerCase())
+const releaseFrequencyForDependencyUpdates = parseDurationParam('releaseFrequencyForDependencyUpdates')
 const miscPullRequestLabels =
     core.getInput('miscPullRequestLabels', { required: false })
         .split(/[\n\r,;]+/)
         .map(it => it.trim())
         .filter(it => it.length)
         .map(it => it.toLowerCase())
+const releaseFrequencyForMiscPullRequests = parseDurationParam('releaseFrequencyForMiscPullRequests')
 const versionIncrementMode =
     core.getInput('versionIncrementMode', { required: true }).toLowerCase() as VersionIncrementMode
 const checkActorsAllowedToFail =
@@ -101,10 +120,13 @@ async function run(): Promise<void> {
         core.debug(`skippedChangelogPullRequestLabels=\`${skippedChangelogPullRequestLabels.join('`, `')}\``)
         core.debug(`dependencyUpdatesPullRequestLabels=\`${dependencyUpdatesPullRequestLabels.join('`, `')}\``)
         core.debug(`dependencyUpdatesAuthors=\`${dependencyUpdatesAuthors.join('`, `')}\``)
+        core.debug(`releaseFrequencyForDependencyUpdates=\`${releaseFrequencyForDependencyUpdates}\``)
         core.debug(`miscPullRequestLabels=\`${miscPullRequestLabels.join('`, `')}\``)
+        core.debug(`releaseFrequencyForMiscPullRequests=\`${releaseFrequencyForMiscPullRequests}\``)
         core.debug(`versionIncrementMode=\`${versionIncrementMode}\``)
         core.debug(`checkActorsAllowedToFail=\`${checkActorsAllowedToFail.join('`, `')}\``)
         core.debug(`actionPathsAllowedToFail=\`${actionPathsAllowedToFail.join('`, `')}\``)
+        core.debug(`addAutomaticReleaseInfo=\`${addAutomaticReleaseInfo}\``)
         core.debug(`dryRun=\`${dryRun}\``)
 
 
@@ -382,6 +404,44 @@ async function run(): Promise<void> {
         if (!changeLogItems.length) {
             core.warning(`Skipping release creation, as no changelog items were collected`)
             return
+        }
+
+        const releaseFrequencyMillis = Math.min(...changeLogItems.map(item => {
+            const type = item.type
+            if (type === 'dependency') {
+                return releaseFrequencyForDependencyUpdates || 0
+            } else if (type === 'misc') {
+                return releaseFrequencyForMiscPullRequests || 0
+            } else {
+                return 0
+            }
+        }))
+        if (releaseFrequencyMillis > 0) {
+            let lastVersionTagCreatedAt: Date | undefined = undefined
+            const release = await retrieveRelease(octokit, lastVersionTag.tag.name)
+            if (release?.published_at != null) {
+                lastVersionTagCreatedAt = new Date(release.published_at)
+            }
+            if (lastVersionTagCreatedAt == null) {
+                const releaseCommit = await retrieveCommit(octokit, lastVersionTag.tag.commit.sha)
+                const releaseCommitDateString = releaseCommit?.commit?.committer?.date
+                    ?? releaseCommit?.commit?.author?.date
+                if (releaseCommitDateString == null) {
+                    throw new Error(`Can't determine the creation date of the last version tag '${lastVersionTag.tag.name}'`)
+                }
+                lastVersionTagCreatedAt = new Date(releaseCommitDateString)
+            }
+
+            const nextAllowedReleaseDate = new Date(lastVersionTagCreatedAt.getTime() + releaseFrequencyMillis)
+            const now = new Date()
+            if (now.getTime() < nextAllowedReleaseDate.getTime()) {
+                core.warning(`Skipping release creation, as the release frequency interval has not passed yet.`)
+                core.info(`  Last version tag '${lastVersionTag.tag.name}' created at: ${lastVersionTagCreatedAt}`)
+                core.info(`  Release frequency (ms): ${releaseFrequencyMillis}`)
+                core.info(`  Next allowed release date: ${nextAllowedReleaseDate}`)
+                core.info(`  Current date: ${now}`)
+                return
+            }
         }
 
 

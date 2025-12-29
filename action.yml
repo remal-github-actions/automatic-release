@@ -42,9 +42,15 @@ inputs:
     required: false
     default: 'dependabot[bot], renovate[bot]'
     description: Authors of Pull Requests that update dependencies (i.e. PRs from tools like Dependabot, Renovate, etc)
+  releaseFrequencyForDependencyUpdates:
+    required: false
+    description: Release frequency for dependency updates. Values supported by the `parse-duration` can be used.
   miscPullRequestLabels:
     required: false
     description: Labels of misc Pull Requests that update dependencies
+  releaseFrequencyForMiscPullRequests:
+    required: false
+    description: Release frequency for misc PRs. Values supported by the `parse-duration` can be used.
   checkActorsAllowedToFail:
     required: false
     description: >-

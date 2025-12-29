@@ -7741,6 +7741,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"parse-duration@npm:2.1.5":
+  version: 2.1.5
+  resolution: "parse-duration@npm:2.1.5"
+  checksum: 10c0/e1b10862b47091bcbb21cf75f60e8db443cfe0a48b3b8763951e1359ba6f78728f9b7c0581ed1aec9edc05311ccfda52b12fb4d1378ece08935e9ee99fd9b245
+  languageName: node
+  linkType: hard
+
 "parse-json@npm:^5.2.0":
   version: 5.2.0
   resolution: "parse-json@npm:5.2.0"
@@ -8836,6 +8843,7 @@ __metadata:
     jest: "npm:30.2.0"
     jest-circus: "npm:30.2.0"
     jest-extended: "npm:7.0.0"
+    parse-duration: "npm:2.1.5"
     picomatch: "npm:4.0.3"
     rimraf: "npm:6.1.2"
     semver: "npm:^7"
