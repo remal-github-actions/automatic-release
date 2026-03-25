@@ -23,7 +23,7 @@
     "@octokit/rest": "22.0.1",
     "console-log-level": "1.4.1",
     "parse-duration": "2.1.5",
-    "picomatch": "4.0.3"
+    "picomatch": "4.0.4"
   },
   "devDependencies": {
     "@tsconfig/node20": "20.1.9",
