@@ -1,3 +1,4 @@
+/* eslint-disable jest/valid-title */
 import { parseLabelCondition } from './labelCondition.js'
 
 describe(parseLabelCondition.name, () => {
@@ -30,3 +31,4 @@ describe(parseLabelCondition.name, () => {
     })
 
 })
+/* eslint-enable jest/valid-title */

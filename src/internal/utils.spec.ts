@@ -1,3 +1,4 @@
+/* eslint-disable jest/valid-title */
 import { hasNotEmptyIntersection } from './utils.js'
 
 describe(hasNotEmptyIntersection.name, () => {
@@ -39,3 +40,4 @@ describe(hasNotEmptyIntersection.name, () => {
     })
 
 })
+/* eslint-enable jest/valid-title */
