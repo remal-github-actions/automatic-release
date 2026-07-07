@@ -41547,6 +41547,40 @@ async function run() {
             }
         }
         const checkRuns = await retrieveCheckRuns(octokit, defaultBranch.commit.sha);
+        const currentRepoUrlPrefix = `${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.repo}/`;
+        const actionRunCache = new Map();
+        async function getActionRun(checkRun) {
+            let url = checkRun.html_url;
+            if (url == null)
+                return undefined;
+            if (url.startsWith(currentRepoUrlPrefix)) {
+                url = url.substring(currentRepoUrlPrefix.length);
+            }
+            const match = url.match(/^actions\/runs\/(\d+)\/job\/(\d+)$/);
+            if (match == null)
+                return undefined;
+            const runId = Number.parseInt(match[1]);
+            const cached = actionRunCache.get(runId);
+            if (cached !== undefined)
+                return cached;
+            const actionRun = await octokit.actions.getWorkflowRun({
+                owner: github.context.repo.owner,
+                repo: github.context.repo.repo,
+                run_id: runId,
+            }).then(it => it.data);
+            actionRunCache.set(runId, actionRun);
+            return actionRun;
+        }
+        const latestRunByWorkflow = new Map();
+        for (const checkRun of checkRuns) {
+            const actionRun = await getActionRun(checkRun);
+            if (actionRun != null) {
+                const existing = latestRunByWorkflow.get(actionRun.path);
+                if (existing == null || actionRun.run_number > existing) {
+                    latestRunByWorkflow.set(actionRun.path, actionRun.run_number);
+                }
+            }
+        }
         const allFailureCheckRuns = checkRuns.filter(it => ![
             'success',
             'neutral',
@@ -41574,31 +41608,23 @@ async function run() {
                         + `, as its app is allowed to fail: '${appSlug}'`);
                     continue;
                 }
-                const currentRepoUrlPrefix = `${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.repo}/`;
-                let url = checkRun.html_url;
-                if (url != null) {
-                    if (url.startsWith(currentRepoUrlPrefix)) {
-                        url = url.substring(currentRepoUrlPrefix.length);
+                const actionRun = await getActionRun(checkRun);
+                if (actionRun != null) {
+                    if (actionRun.run_number < (latestRunByWorkflow.get(actionRun.path) ?? 0)) {
+                        info(`Ignoring failed ${checkRun.html_url} check run`
+                            + `, as a newer run exists for workflow: ${actionRun.path}`);
+                        continue;
                     }
-                    const actionRunMatch = url?.match(/^actions\/runs\/(\d+)\/job\/(\d+)$/);
-                    if (actionRunMatch != null) {
-                        const actionRunId = actionRunMatch[1];
-                        const actionRun = await octokit.actions.getWorkflowRun({
-                            owner: github.context.repo.owner,
-                            repo: github.context.repo.repo,
-                            run_id: Number.parseInt(actionRunId),
-                        }).then(it => it.data);
-                        const actor = actionRun.actor?.login?.toLowerCase() ?? '';
-                        if (checkActorsAllowedToFail.includes(actor)) {
-                            info(`Ignoring failed ${checkRun.html_url} check run`
-                                + `, as it's actor is allowed to fail: '${actor}'`);
-                            continue;
-                        }
-                        if (actionPathsAllowedToFail.includes(actionRun.path)) {
-                            info(`Ignoring failed ${checkRun.html_url} check run`
-                                + `, as it's a part of GitHUb action that is allowed to fail: ${actionRun.path}`);
-                            continue;
-                        }
+                    const actor = actionRun.actor?.login?.toLowerCase() ?? '';
+                    if (checkActorsAllowedToFail.includes(actor)) {
+                        info(`Ignoring failed ${checkRun.html_url} check run`
+                            + `, as it's actor is allowed to fail: '${actor}'`);
+                        continue;
+                    }
+                    if (actionPathsAllowedToFail.includes(actionRun.path)) {
+                        info(`Ignoring failed ${checkRun.html_url} check run`
+                            + `, as it's a part of GitHUb action that is allowed to fail: ${actionRun.path}`);
+                        continue;
                     }
                 }
                 failureCheckRuns.push(checkRun);
