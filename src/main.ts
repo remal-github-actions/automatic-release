@@ -185,16 +185,15 @@ async function run(): Promise<void> {
             const match = url.match(/^actions\/runs\/(\d+)\/job\/(\d+)$/)
             if (match == null) return undefined
             const runId = Number.parseInt(match[1])
-            let cached = actionRunCache.get(runId)
-            if (cached === undefined) {
-                cached = await octokit.actions.getWorkflowRun({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    run_id: runId,
-                }).then(it => it.data)
-                actionRunCache.set(runId, cached)
-            }
-            return cached
+            const cached = actionRunCache.get(runId)
+            if (cached !== undefined) return cached
+            const actionRun = await octokit.actions.getWorkflowRun({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: runId,
+            }).then(it => it.data)
+            actionRunCache.set(runId, actionRun)
+            return actionRun
         }
 
         const latestRunByWorkflow = new Map<string, number>()
