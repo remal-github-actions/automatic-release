@@ -265,8 +265,23 @@ async function run(): Promise<void> {
             }
 
             if (failureCheckRuns.length) {
-                let message = `${failureCheckRuns.length} check run(s) not succeed for '${defaultBranch.name}' branch:`
-                for (const checkRun of failureCheckRuns) {
+                const inProgressRuns = failureCheckRuns.filter(it => it.status !== 'completed')
+                const completedFailureRuns = failureCheckRuns.filter(it => it.status === 'completed')
+
+                if (inProgressRuns.length) {
+                    let message = `${inProgressRuns.length} check run(s) still in progress for '${defaultBranch.name}' branch:`
+                    for (const checkRun of inProgressRuns) {
+                        message += `\n  ${checkRun.html_url}`
+                        if (checkRun.output?.title != null) {
+                            message += ` (${checkRun.output?.title})`
+                        }
+                        message += ` (${checkRun.status})`
+                    }
+                    throw new Error(message)
+                }
+
+                let message = `${completedFailureRuns.length} check run(s) not succeed for '${defaultBranch.name}' branch:`
+                for (const checkRun of completedFailureRuns) {
                     message += `\n  ${checkRun.html_url}`
                     if (checkRun.output?.title != null) {
                         message += ` (${checkRun.output?.title})`
