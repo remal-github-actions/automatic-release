@@ -59,6 +59,10 @@ inputs:
   actionPathsAllowedToFail:
     required: false
     description: Paths of GitHub actions that are allowed to fail
+  waitForChecksMinutes:
+    required: false
+    default: '60'
+    description: How long to wait (in minutes) for in-progress checks to complete before failing
   addAutomaticReleaseInfo:
     required: false
     description: Add information about automatic release to the changelog

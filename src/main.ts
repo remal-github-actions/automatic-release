@@ -99,6 +99,7 @@ const actionPathsAllowedToFail =
         .split(/[\n\r,;]+/)
         .map(it => it.trim())
         .filter(it => it.length)
+const waitForChecksMinutes = Number.parseInt(core.getInput('waitForChecksMinutes', { required: false }) || '60')
 const addAutomaticReleaseInfo = core.getInput('addAutomaticReleaseInfo', { required: false }).toLowerCase() === 'true'
 const dryRun = core.getInput('dryRun', { required: false }).toLowerCase() === 'true'
 
@@ -126,6 +127,7 @@ async function run(): Promise<void> {
         core.debug(`versionIncrementMode=\`${versionIncrementMode}\``)
         core.debug(`checkActorsAllowedToFail=\`${checkActorsAllowedToFail.join('`, `')}\``)
         core.debug(`actionPathsAllowedToFail=\`${actionPathsAllowedToFail.join('`, `')}\``)
+        core.debug(`waitForChecksMinutes=\`${waitForChecksMinutes}\``)
         core.debug(`addAutomaticReleaseInfo=\`${addAutomaticReleaseInfo}\``)
         core.debug(`dryRun=\`${dryRun}\``)
 
@@ -172,8 +174,6 @@ async function run(): Promise<void> {
         }
 
 
-        const checkRuns = await retrieveCheckRuns(octokit, defaultBranch.commit.sha)
-
         const currentRepoUrlPrefix = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/`
         const actionRunCache = new Map<number, Awaited<ReturnType<typeof octokit.actions.getWorkflowRun>>['data']>()
         async function getActionRun(checkRun: CheckRun) {
@@ -196,25 +196,37 @@ async function run(): Promise<void> {
             return actionRun
         }
 
-        const latestRunByWorkflow = new Map<string, number>()
-        for (const checkRun of checkRuns) {
-            const actionRun = await getActionRun(checkRun)
-            if (actionRun != null) {
-                const existing = latestRunByWorkflow.get(actionRun.path)
-                if (existing == null || actionRun.run_number > existing) {
-                    latestRunByWorkflow.set(actionRun.path, actionRun.run_number)
+        const waitForChecksDeadline = Date.now() + waitForChecksMinutes * 60 * 1000
+        const pollIntervalMs = 30_000
+
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+            actionRunCache.clear()
+
+            const checkRuns = await retrieveCheckRuns(octokit, defaultBranch.commit.sha)
+
+            const latestRunByWorkflow = new Map<string, number>()
+            for (const checkRun of checkRuns) {
+                const actionRun = await getActionRun(checkRun)
+                if (actionRun != null) {
+                    const existing = latestRunByWorkflow.get(actionRun.path)
+                    if (existing == null || actionRun.run_number > existing) {
+                        latestRunByWorkflow.set(actionRun.path, actionRun.run_number)
+                    }
                 }
             }
-        }
 
-        const allFailureCheckRuns = checkRuns.filter(it => ![
-            'success',
-            'neutral',
-            'cancelled',
-            'skipped',
-            'action_required',
-        ].includes(it.conclusion ?? ''))
-        if (allFailureCheckRuns.length) {
+            const allFailureCheckRuns = checkRuns.filter(it => ![
+                'success',
+                'neutral',
+                'cancelled',
+                'skipped',
+                'action_required',
+            ].includes(it.conclusion ?? ''))
+            if (!allFailureCheckRuns.length) {
+                break
+            }
+
             const currentWorkflowRun = await octokit.actions.getWorkflowRun({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -264,22 +276,14 @@ async function run(): Promise<void> {
                 failureCheckRuns.push(checkRun)
             }
 
-            if (failureCheckRuns.length) {
-                const inProgressRuns = failureCheckRuns.filter(it => it.status !== 'completed')
-                const completedFailureRuns = failureCheckRuns.filter(it => it.status === 'completed')
+            if (!failureCheckRuns.length) {
+                break
+            }
 
-                if (inProgressRuns.length) {
-                    let message = `${inProgressRuns.length} check run(s) still in progress for '${defaultBranch.name}' branch:`
-                    for (const checkRun of inProgressRuns) {
-                        message += `\n  ${checkRun.html_url}`
-                        if (checkRun.output?.title != null) {
-                            message += ` (${checkRun.output?.title})`
-                        }
-                        message += ` (${checkRun.status})`
-                    }
-                    throw new Error(message)
-                }
+            const inProgressRuns = failureCheckRuns.filter(it => it.status !== 'completed')
+            const completedFailureRuns = failureCheckRuns.filter(it => it.status === 'completed')
 
+            if (completedFailureRuns.length) {
                 let message = `${completedFailureRuns.length} check run(s) not succeed for '${defaultBranch.name}' branch:`
                 for (const checkRun of completedFailureRuns) {
                     message += `\n  ${checkRun.html_url}`
@@ -292,6 +296,21 @@ async function run(): Promise<void> {
                 }
                 throw new Error(message)
             }
+
+            if (Date.now() >= waitForChecksDeadline) {
+                let message = `${inProgressRuns.length} check run(s) still in progress for '${defaultBranch.name}' branch after waiting ${waitForChecksMinutes} minute(s):`
+                for (const checkRun of inProgressRuns) {
+                    message += `\n  ${checkRun.html_url}`
+                    if (checkRun.output?.title != null) {
+                        message += ` (${checkRun.output?.title})`
+                    }
+                    message += ` (${checkRun.status})`
+                }
+                throw new Error(message)
+            }
+
+            core.info(`${inProgressRuns.length} check run(s) still in progress, waiting ${pollIntervalMs / 1000}s before retrying...`)
+            await new Promise(resolve => setTimeout(resolve, pollIntervalMs))
         }
 
 
