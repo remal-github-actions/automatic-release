@@ -41487,6 +41487,7 @@ const actionPathsAllowedToFail = getInput('actionPathsAllowedToFail', { required
     .split(/[\n\r,;]+/)
     .map(it => it.trim())
     .filter(it => it.length);
+const waitForChecksMinutes = Number.parseInt(getInput('waitForChecksMinutes', { required: false }) || '60');
 const addAutomaticReleaseInfo = getInput('addAutomaticReleaseInfo', { required: false }).toLowerCase() === 'true';
 const dryRun = getInput('dryRun', { required: false }).toLowerCase() === 'true';
 allowedVersionTagPrefixes.push(versionTagPrefix);
@@ -41509,6 +41510,7 @@ async function run() {
         core_debug(`versionIncrementMode=\`${versionIncrementMode}\``);
         core_debug(`checkActorsAllowedToFail=\`${checkActorsAllowedToFail.join('`, `')}\``);
         core_debug(`actionPathsAllowedToFail=\`${actionPathsAllowedToFail.join('`, `')}\``);
+        core_debug(`waitForChecksMinutes=\`${waitForChecksMinutes}\``);
         core_debug(`addAutomaticReleaseInfo=\`${addAutomaticReleaseInfo}\``);
         core_debug(`dryRun=\`${dryRun}\``);
         const repo = await retrieveRepo(octokit);
@@ -41546,7 +41548,6 @@ async function run() {
                 }
             }
         }
-        const checkRuns = await retrieveCheckRuns(octokit, defaultBranch.commit.sha);
         const currentRepoUrlPrefix = `${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.repo}/`;
         const actionRunCache = new Map();
         async function getActionRun(checkRun) {
@@ -41571,24 +41572,31 @@ async function run() {
             actionRunCache.set(runId, actionRun);
             return actionRun;
         }
-        const latestRunByWorkflow = new Map();
-        for (const checkRun of checkRuns) {
-            const actionRun = await getActionRun(checkRun);
-            if (actionRun != null) {
-                const existing = latestRunByWorkflow.get(actionRun.path);
-                if (existing == null || actionRun.run_number > existing) {
-                    latestRunByWorkflow.set(actionRun.path, actionRun.run_number);
+        const waitForChecksDeadline = Date.now() + waitForChecksMinutes * 60 * 1000;
+        const pollIntervalMs = 30_000;
+        while (true) {
+            actionRunCache.clear();
+            const checkRuns = await retrieveCheckRuns(octokit, defaultBranch.commit.sha);
+            const latestRunByWorkflow = new Map();
+            for (const checkRun of checkRuns) {
+                const actionRun = await getActionRun(checkRun);
+                if (actionRun != null) {
+                    const existing = latestRunByWorkflow.get(actionRun.path);
+                    if (existing == null || actionRun.run_number > existing) {
+                        latestRunByWorkflow.set(actionRun.path, actionRun.run_number);
+                    }
                 }
             }
-        }
-        const allFailureCheckRuns = checkRuns.filter(it => ![
-            'success',
-            'neutral',
-            'cancelled',
-            'skipped',
-            'action_required',
-        ].includes(it.conclusion ?? ''));
-        if (allFailureCheckRuns.length) {
+            const allFailureCheckRuns = checkRuns.filter(it => ![
+                'success',
+                'neutral',
+                'cancelled',
+                'skipped',
+                'action_required',
+            ].includes(it.conclusion ?? ''));
+            if (!allFailureCheckRuns.length) {
+                break;
+            }
             const currentWorkflowRun = await octokit.actions.getWorkflowRun({
                 owner: github.context.repo.owner,
                 repo: github.context.repo.repo,
@@ -41629,20 +41637,12 @@ async function run() {
                 }
                 failureCheckRuns.push(checkRun);
             }
-            if (failureCheckRuns.length) {
-                const inProgressRuns = failureCheckRuns.filter(it => it.status !== 'completed');
-                const completedFailureRuns = failureCheckRuns.filter(it => it.status === 'completed');
-                if (inProgressRuns.length) {
-                    let message = `${inProgressRuns.length} check run(s) still in progress for '${defaultBranch.name}' branch:`;
-                    for (const checkRun of inProgressRuns) {
-                        message += `\n  ${checkRun.html_url}`;
-                        if (checkRun.output?.title != null) {
-                            message += ` (${checkRun.output?.title})`;
-                        }
-                        message += ` (${checkRun.status})`;
-                    }
-                    throw new Error(message);
-                }
+            if (!failureCheckRuns.length) {
+                break;
+            }
+            const inProgressRuns = failureCheckRuns.filter(it => it.status !== 'completed');
+            const completedFailureRuns = failureCheckRuns.filter(it => it.status === 'completed');
+            if (completedFailureRuns.length) {
                 let message = `${completedFailureRuns.length} check run(s) not succeed for '${defaultBranch.name}' branch:`;
                 for (const checkRun of completedFailureRuns) {
                     message += `\n  ${checkRun.html_url}`;
@@ -41655,6 +41655,19 @@ async function run() {
                 }
                 throw new Error(message);
             }
+            if (Date.now() >= waitForChecksDeadline) {
+                let message = `${inProgressRuns.length} check run(s) still in progress for '${defaultBranch.name}' branch after waiting ${waitForChecksMinutes} minute(s):`;
+                for (const checkRun of inProgressRuns) {
+                    message += `\n  ${checkRun.html_url}`;
+                    if (checkRun.output?.title != null) {
+                        message += ` (${checkRun.output?.title})`;
+                    }
+                    message += ` (${checkRun.status})`;
+                }
+                throw new Error(message);
+            }
+            info(`${inProgressRuns.length} check run(s) still in progress, waiting ${pollIntervalMs / 1000}s before retrying...`);
+            await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
         }
         const changeLogItems = [];
         function addChangelogItem(commit, type, message, originalMessage, author = undefined, pullRequestNumber = undefined) {
