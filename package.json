@@ -23,7 +23,7 @@
     "@octokit/rest": "22.0.1",
     "console-log-level": "1.4.1",
     "parse-duration": "2.1.6",
-    "picomatch": "4.0.4"
+    "picomatch": "4.0.5"
   },
   "devDependencies": {
     "@eslint-community/eslint-plugin-eslint-comments": "4.7.2",
