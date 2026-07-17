@@ -40262,9 +40262,12 @@ unit.placeholder = ' _'
 ;// CONCATENATED MODULE: ./node_modules/parse-duration/index.js
 
 
-const durationRE = /((?:\d{1,16}(?:\.\d{1,16})?|\.\d{1,16})(?:[eE][-+]?\d{1,4})?)\s?([\p{L}]{0,14})/gu
+const durationRE = /((?:\d{1,16}(?:\.\d{1,16})?|\.\d{1,16})(?:[eE][-+]?\d{1,4})?)\s*([\p{L}]{0,14})/gu
 
 parse_duration_parse.unit = en
+
+// group/placeholder cleanup regex — rebuilt only when the locale strings change
+let groupRE, placeholder = null, parse_duration_group
 
 /**
  * convert `str` to ms
@@ -40274,28 +40277,34 @@ parse_duration_parse.unit = en
  * @return {number|null}
  */
 function parse_duration_parse(str = '', format = 'ms') {
-  let result = null, prevUnits
+  let result = null, prevUnits, unit = parse_duration_parse.unit
 
-  String(str)
-    .replace(new RegExp(`(\\d)[${parse_duration_parse.unit.placeholder}${parse_duration_parse.unit.group}](\\d)`, 'g'), '$1$2')  // clean up group separators / placeholders
-    .replace(parse_duration_parse.unit.decimal, '.') // normalize decimal separator
-    .replace(durationRE, (_, n, units) => {
+  if (unit.placeholder !== placeholder || unit.group !== parse_duration_group)
+    groupRE = new RegExp(`(\\d)[${(placeholder = unit.placeholder) ?? ''}${(parse_duration_group = unit.group) ?? ''}](\\d)`, 'g')
+
+  str = String(str)
+  let s = str.replace(groupRE, '$1$2') // clean up group separators / placeholders
+  if (unit.decimal !== '.') s = s.replaceAll(unit.decimal, '.') // normalize decimal separator
+
+  durationRE.lastIndex = 0
+  for (let m; (m = durationRE.exec(s));) {
+    let units = m[2]
     // if no units, find next smallest units or fall back to format value
     // eg. 1h30 -> 1h30m
     if (!units) {
       if (prevUnits) {
-        for (const u in parse_duration_parse.unit) if (parse_duration_parse.unit[u] < prevUnits) { units = u; break }
+        for (const u in unit) if (unit[u] < prevUnits) { units = u; break }
       }
       else units = format
     }
     else units = units.toLowerCase()
 
-    prevUnits = units = parse_duration_parse.unit[units] || parse_duration_parse.unit[units.replace(/s$/, '')]
+    prevUnits = units = unit[units] || (units.endsWith('s') ? unit[units.slice(0, -1)] : undefined)
 
-    if (units) result = (result || 0) + n * units
-  })
+    if (typeof units == 'number') result = (result || 0) + m[1] * units
+  }
 
-  return result && ((result / (parse_duration_parse.unit[format] || 1)) * (str[0] === '-' ? -1 : 1))
+  return result && ((result / (unit[format] || 1)) * (str.trimStart()[0] === '-' ? -1 : 1))
 }
 
 // EXTERNAL MODULE: ./node_modules/picomatch/index.js
