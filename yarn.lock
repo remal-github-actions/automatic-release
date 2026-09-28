@@ -6922,10 +6922,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"parse-duration@npm:2.1.8":
-  version: 2.1.8
-  resolution: "parse-duration@npm:2.1.8"
-  checksum: 10c0/9d376d6942fcd40057db0dca733e4429ce09eb98f07169f610c80fc2df9082ee078f75381174e92a22cf5bc82f9828ceaa02b2b1dfc4a3dab2a70b13f0f9a8ee
+"parse-duration@npm:2.1.9":
+  version: 2.1.9
+  resolution: "parse-duration@npm:2.1.9"
+  checksum: 10c0/952e6d70a8b5034959693edb1f19ad3e3a4791ea8353275b624c08fe957f3986599c5c20a8b166238df1583f031d20fb1c8bbafe3c4316da2e6b7bf94bde802c
   languageName: node
   linkType: hard
 
@@ -7921,7 +7921,7 @@ __metadata:
     jest: "npm:30.5.2"
     jest-circus: "npm:30.5.2"
     jest-extended: "npm:7.0.0"
-    parse-duration: "npm:2.1.8"
+    parse-duration: "npm:2.1.9"
     picomatch: "npm:4.0.7"
     rimraf: "npm:6.1.3"
     semver: "npm:^7"
