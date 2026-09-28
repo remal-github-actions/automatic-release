@@ -40406,12 +40406,24 @@ unit.placeholder = ' _'
 ;// CONCATENATED MODULE: ./node_modules/parse-duration/index.js
 
 
-const durationRE = /((?:\d{1,16}(?:\.\d{1,16})?|\.\d{1,16})(?:[eE][-+]?\d{1,4})?)\s*([\p{L}]{0,14})/gu
+const durationRE = /((?:\d+(?:\.\d+)?|\.\d+)(?:[eE][-+]?\d+)?)\s*([\p{L}]{0,14})/gu
 
 parse_duration_parse.unit = en
 
 // group/placeholder cleanup regex — rebuilt only when the locale strings change
 let groupRE, placeholder = null, parse_duration_group
+
+/**
+ * look up a unit name, ignoring case and a trailing plural `s`
+ *
+ * @param {object} unit
+ * @param {string} name
+ * @return {number|undefined}
+ */
+const lookupUnit = (unit, name) => {
+  name = String(name).toLowerCase()
+  return unit[name] ?? (name.endsWith('s') ? unit[name.slice(0, -1)] : undefined)
+}
 
 /**
  * convert `str` to ms
@@ -40441,14 +40453,13 @@ function parse_duration_parse(str = '', format = 'ms') {
       }
       else units = format
     }
-    else units = units.toLowerCase()
 
-    prevUnits = units = unit[units] || (units.endsWith('s') ? unit[units.slice(0, -1)] : undefined)
+    prevUnits = units = lookupUnit(unit, units)
 
     if (typeof units == 'number') result = (result || 0) + m[1] * units
   }
 
-  return result && ((result / (unit[format] || 1)) * (str.trimStart()[0] === '-' ? -1 : 1))
+  return result && ((result / (lookupUnit(unit, format) || 1)) * (str.trimStart()[0] === '-' ? -1 : 1))
 }
 
 // EXTERNAL MODULE: ./node_modules/picomatch/index.js
