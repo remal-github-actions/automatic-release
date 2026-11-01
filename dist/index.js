@@ -40776,7 +40776,7 @@ unit.placeholder = ' _'
 ;// CONCATENATED MODULE: ./node_modules/parse-duration/index.js
 
 
-const durationRE = /((?:\d+(?:\.\d+)?|\.\d+)(?:[eE][-+]?\d+)?)\s*([\p{L}]{0,14})/gu
+const durationRE = /((?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)\s*([\p{L}]{0,14})/gu
 
 parse_duration_parse.unit = en
 
@@ -40806,10 +40806,10 @@ function parse_duration_parse(str = '', format = 'ms') {
   let result = null, prevUnits, unit = parse_duration_parse.unit
 
   if (unit.placeholder !== placeholder || unit.group !== parse_duration_group)
-    groupRE = new RegExp(`(\\d)[${(placeholder = unit.placeholder) ?? ''}${(parse_duration_group = unit.group) ?? ''}](\\d)`, 'g')
+    groupRE = new RegExp(`(\\d)[${(placeholder = unit.placeholder) ?? ''}${(parse_duration_group = unit.group) ?? ''}](?=\\d)`, 'g')
 
   str = String(str)
-  let s = str.replace(groupRE, '$1$2') // clean up group separators / placeholders
+  let s = str.replace(groupRE, '$1') // clean up group separators / placeholders
   if (unit.decimal !== '.') s = s.replaceAll(unit.decimal, '.') // normalize decimal separator
 
   durationRE.lastIndex = 0
